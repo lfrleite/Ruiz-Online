@@ -1,3 +1,5 @@
+### ↩️[Retornar a página principal](https://github.com/lfrleite/Ruiz-Online)
+---
 # 📌 Script PowerShell
 ```powershell
 Param(
@@ -46,3 +48,5 @@ $AzureContext = Set-AzContext -SubscriptionName $AzureContext.Subscription -Defa
     }
   }
 ```
+---
+### ↩️[Retornar a página principal](https://github.com/lfrleite/Ruiz-Online)
