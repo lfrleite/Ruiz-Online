@@ -14,18 +14,21 @@ php-mysql php-tidy php-xmlrpc php-mbstring php-ldap php-cas php-apcu php-json ph
 libapache2-mod-php xmlrpc-api-utils xz-utils bzip2 unzip curl php-soap php-common php-bcmath \
 php-zip php-bz2
 ```
+---
 
 # Configurando o PHP
 ```js
 PHP_INI="/etc/php/$(php -r 'echo PHP_MAJOR_VERSION.".".PHP_MINOR_VERSION;')/apache2/php.ini"
 sed -i 's/^session.cookie_httponly =/session.cookie_httponly = on/g' "$PHP_INI"
 ```
+---
 
 # Baixando a última versão do GLPI
 ```js
 GLPI_VERSION=$(curl -s https://api.github.com/repos/glpi-project/glpi/releases/latest | grep tag_name | cut -d '"' -f 4)
 wget https://github.com/glpi-project/glpi/releases/download/"$GLPI_VERSION"/glpi-"$GLPI_VERSION".tgz
 ```
+---
 
 # Extraindo e movendo o GLPI para o diretório do Apache
 ```js
@@ -43,16 +46,19 @@ chown -R www-data:www-data /var/www/html
 ```js
 chmod -R u+rw /var/www/html
 ```
+---
 
 # Reinicialização do servidor web para buscar a nova configuração
 ```js
 systemctl restart apache2
 ```
+---
 
 # Criando um arquivo na pasta "/etc/apache2/conf-available" para configuração do GLPI no APACHE
 ```js
 vim /etc/apache2/conf-available/glpi.conf
 ```
+---
 
 # Adicionando as informações abaixo dentro do arquivo "glpi.conf"
 ```js
@@ -85,18 +91,27 @@ vim /etc/apache2/conf-available/glpi.conf
     </Directory>
 </VirtualHost>
 ```
+---
 
 # Habilitação do módulo rewrite no apache
 ```js
 a2enmod rewrite
 ```
+---
 
 # Habilitação da configuração previamente criada
 ```js
 a2enconf glpi.conf
 ```
+---
+
 # Reinicialização do servidor web para buscar a nova configuração
+```js
 service apache2 restart
+```
+---
 
 # Ao final da instalação, realize a exclusão do arquivo install.php
+```js
 rm /var/www/html/install/install.php
+```
