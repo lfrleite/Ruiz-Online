@@ -1,0 +1,55 @@
+Resources
+| extend
+    TagBU = tostring(tags['BU']),
+    TagCC = tostring(tags['CC']),
+    TagAMBIENTE = tostring(tags['AMBIENTE']),
+    TagCLIENTE = tostring(tags['CLIENTE']),
+    TagCCOWNER = tostring(tags['CCOWNER'])
+| extend
+    QuantidadeTagsAusentes =
+        iff(isempty(TagBU), 1, 0)
+        + iff(isempty(TagCC), 1, 0)
+        + iff(isempty(TagAMBIENTE), 1, 0)
+        + iff(isempty(TagCLIENTE), 1, 0)
+        + iff(isempty(TagCCOWNER), 1, 0),
+    TagsAusentes = strcat(
+        iff(isempty(TagBU), 'BU; ', ''),
+        iff(isempty(TagCC), 'CC; ', ''),
+        iff(isempty(TagAMBIENTE), 'AMBIENTE; ', ''),
+        iff(isempty(TagCLIENTE), 'CLIENTE; ', ''),
+        iff(isempty(TagCCOWNER), 'CCOWNER; ', '')
+    )
+| where QuantidadeTagsAusentes > 0
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project
+    NomeSubscription,
+    subscriptionId,
+    NomeRecurso = name,
+    TipoRecurso = type,
+    GrupoRecursos = resourceGroup,
+    Localizacao = location,
+    QuantidadeTagsAusentes,
+    TagsAusentes,
+    TagBU,
+    TagCC,
+    TagAMBIENTE,
+    TagCLIENTE,
+    TagCCOWNER,
+    TagsAtuais = tags,
+    ResourceId = id
+| order by QuantidadeTagsAusentes desc, NomeSubscription asc, TipoRecurso asc, NomeRecurso asc
+
+// Tags obrigatórias adotadas nesta versão:
+// BU, CC, AMBIENTE, CLIENTE e CCOWNER.
+//
+// Para alterar a política, ajuste os campos nas etapas "extend".
+//
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
