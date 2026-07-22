@@ -1,0 +1,18 @@
+Resources
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| summarize
+    QuantidadeRecursos = count(),
+    QuantidadeResourceGroups = dcount(resourceGroup),
+    QuantidadeLocalizacoes = dcount(location)
+    by NomeSubscription, subscriptionId, TipoRecurso = type
+| order by NomeSubscription asc, QuantidadeRecursos desc, TipoRecurso asc
+
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
