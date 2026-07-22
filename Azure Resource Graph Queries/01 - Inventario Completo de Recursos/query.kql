@@ -1,25 +1,26 @@
 Resources
-| extend
-    SkuNome = tostring(sku.name),
-    SkuTier = tostring(sku.tier),
-    SkuTamanho = tostring(sku.size),
-    SkuFamilia = tostring(sku.family),
-    SkuModelo = tostring(sku.model),
-    SkuCapacidade = toint(sku.capacity),
-    TipoIdentidade = tostring(identity.type),
-    PrincipalId = tostring(identity.principalId),
-    TenantIdIdentidade = tostring(identity.tenantId),
-    DataCriacaoUTC = todatetime(systemData.createdAt),
-    CriadoPor = tostring(systemData.createdBy),
-    TipoCriador = tostring(systemData.createdByType),
-    UltimaAlteracaoUTC = todatetime(systemData.lastModifiedAt),
-    UltimaAlteracaoPor = tostring(systemData.lastModifiedBy),
-    TipoUltimaAlteracao = tostring(systemData.lastModifiedByType)
+| project
+    subscriptionId,
+    resourceGroup,
+    name,
+    type,
+    location,
+    kind,
+    sku,
+    zones,
+    managedBy,
+    identity,
+    plan,
+    extendedLocation,
+    tags,
+    properties,
+    id
 | join kind=leftouter (
     ResourceContainers
     | where type =~ 'microsoft.resources/subscriptions'
     | project subscriptionId, NomeSubscription = name
 ) on subscriptionId
+| project-away subscriptionId1
 | project
     NomeSubscription,
     subscriptionId,
@@ -28,32 +29,13 @@ Resources
     GrupoRecursos = resourceGroup,
     Localizacao = location,
     Kind = kind,
-    SkuNome,
-    SkuTier,
-    SkuTamanho,
-    SkuFamilia,
-    SkuModelo,
-    SkuCapacidade,
+    SKU = sku,
     Zonas = zones,
     GerenciadoPor = managedBy,
-    TipoIdentidade,
-    PrincipalId,
-    TenantIdIdentidade,
-    DataCriacaoUTC,
-    CriadoPor,
-    TipoCriador,
-    UltimaAlteracaoUTC,
-    UltimaAlteracaoPor,
-    TipoUltimaAlteracao,
-    Tags = tags,
+    Identidade = identity,
     Plano = plan,
     LocalizacaoEstendida = extendedLocation,
+    Tags = tags,
     Propriedades = properties,
     ResourceId = id
 | order by NomeSubscription asc, TipoRecurso asc, NomeRecurso asc
-
-// Para filtrar por subscriptions, insira após a linha "Resources":
-// | where subscriptionId in (
-//     'SUBSCRIPTION-ID-1',
-//     'SUBSCRIPTION-ID-2'
-// )
