@@ -1,0 +1,57 @@
+Resources
+| extend
+    TagBU = tostring(tags['BU']),
+    TagCC = tostring(tags['CC']),
+    TagAMBIENTE = tostring(tags['AMBIENTE']),
+    TagCLIENTE = tostring(tags['CLIENTE']),
+    TagCCOWNER = tostring(tags['CCOWNER']),
+    TagCAPEX = tostring(tags['CAPEX']),
+    TagDISPONIBILIDADE = tostring(tags['DISPONIBILIDADE']),
+    TagDOMINIO = tostring(tags['DOMINIO']),
+    TagFUNCAO = tostring(tags['FUNCAO']),
+    TagPRODUTO = tostring(tags['PRODUTO']),
+    TagRESERVA = tostring(tags['RESERVA']),
+    TagBACKUP = tostring(tags['BACKUP']),
+    TagSTART = tostring(tags['START']),
+    TagSQUAD = tostring(tags['SQUAD']),
+    TagSTOP = tostring(tags['STOP']),
+    TagWAVE = tostring(tags['WAVE']),
+    TagSO = tostring(tags['SO'])
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project
+    NomeSubscription,
+    subscriptionId,
+    NomeRecurso = name,
+    TipoRecurso = type,
+    GrupoRecursos = resourceGroup,
+    Localizacao = location,
+    TagBU,
+    TagCC,
+    TagAMBIENTE,
+    TagCLIENTE,
+    TagCCOWNER,
+    TagCAPEX,
+    TagDISPONIBILIDADE,
+    TagDOMINIO,
+    TagFUNCAO,
+    TagPRODUTO,
+    TagRESERVA,
+    TagBACKUP,
+    TagSTART,
+    TagSQUAD,
+    TagSTOP,
+    TagWAVE,
+    TagSO,
+    TodasAsTags = tags,
+    ResourceId = id
+| order by NomeSubscription asc, TagBU asc, TipoRecurso asc, NomeRecurso asc
+
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
