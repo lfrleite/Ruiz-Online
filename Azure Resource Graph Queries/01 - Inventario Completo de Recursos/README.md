@@ -2,7 +2,7 @@
 
 ## Objetivo
 
-Inventariar os recursos disponíveis no Azure Resource Graph com informações técnicas, administrativas e de governança.
+Inventariar os recursos disponíveis no Azure Resource Graph com informações técnicas, administrativas e de governança expostas pela tabela `Resources`.
 
 ## Arquivo
 
@@ -16,9 +16,9 @@ Inventariar os recursos disponíveis no Azure Resource Graph com informações t
 - SKU, zonas e localização estendida
 - Identidade gerenciada
 - Recurso gerenciador
-- Data e identidade de criação, quando expostas em `systemData`
-- Última alteração, quando exposta em `systemData`
-- Tags, plano e propriedades completas
+- Plano do recurso
+- Tags
+- Propriedades completas retornadas pelo provedor
 
 ## Filtrar por subscriptions
 
@@ -33,6 +33,10 @@ A consulta não possui subscriptions fixas. Para limitar o escopo, adicione a et
 
 Também é possível selecionar as subscriptions diretamente no escopo do Azure Resource Graph Explorer.
 
-## Observações
+## Limitações
 
-Alguns campos, principalmente `systemData`, identidade, SKU e plano, podem ficar vazios quando o provedor do recurso não os disponibiliza no Resource Graph. A coluna `Propriedades` pode aumentar consideravelmente o volume exportado; remova-a quando desejar um inventário mais leve.
+A tabela `Resources` não expõe de forma uniforme a data de criação, o criador ou a última identidade que modificou cada recurso. Essas informações não devem ser consultadas por `systemData` nesta query.
+
+Para auditoria de criação e alteração, utilize as tabelas `resourcechanges` e `resourcecontainerchanges`, ou complemente a análise com o Azure Activity Log.
+
+Campos dinâmicos como `sku`, `identity`, `plan`, `extendedLocation` e `properties` podem ficar vazios para tipos de recursos que não disponibilizam essas informações no Resource Graph.
