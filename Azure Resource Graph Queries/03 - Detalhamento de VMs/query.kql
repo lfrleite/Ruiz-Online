@@ -5,11 +5,287 @@
 // )
 
 Resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| extend
+    NomeVM = name,
+    GrupoDeRecursos = resourceGroup,
+    IdSubscription = subscriptionId,
+    Localizacao = location,
+    ZonasDisponibilidade = tostring(zones),
+    IdRecurso = id,
+    VMId = tostring(properties.vmId),
+    DataCriacaoUTC = tostring(properties.timeCreated),
+    EstadoProvisionamento = tostring(properties.provisioningState),
+    EstadoEnergiaCodigo = tostring(properties.extended.instanceView.powerState.code),
+    EstadoEnergiaPortal = tostring(properties.extended.instanceView.powerState.displayStatus),
+    NomeComputadorConfigurado = tostring(properties.osProfile.computerName),
+    NomeComputadorInstanceView = tostring(properties.extended.instanceView.computerName),
+    TamanhoVM = tostring(properties.hardwareProfile.vmSize),
+    VCPUsDisponiveis = tostring(properties.hardwareProfile.vmSizeProperties.vCPUsAvailable),
+    VCPUsPorCore = tostring(properties.hardwareProfile.vmSizeProperties.vCPUsPerCore),
+    PrioridadeVM = tostring(properties.priority),
+    PoliticaRemocaoSpot = tostring(properties.evictionPolicy),
+    PrecoMaximoSpot = tostring(properties.billingProfile.maxPrice),
+    UltraSSDPermitido = tostring(properties.additionalCapabilities.ultraSSDEnabled),
+    HibernacaoHabilitada = tostring(properties.additionalCapabilities.hibernationEnabled)
+| extend
+    NomeComputador = iif(
+        isnotempty(NomeComputadorInstanceView),
+        NomeComputadorInstanceView,
+        NomeComputadorConfigurado
+    ),
+    EstadoEnergia = case(
+        EstadoEnergiaCodigo =~ 'PowerState/running', 'Em execucao',
+        EstadoEnergiaCodigo =~ 'PowerState/stopped', 'Parada',
+        EstadoEnergiaCodigo =~ 'PowerState/deallocated', 'Desalocada',
+        EstadoEnergiaCodigo =~ 'PowerState/deallocating', 'Desalocando',
+        EstadoEnergiaCodigo =~ 'PowerState/starting', 'Iniciando',
+        EstadoEnergiaCodigo =~ 'PowerState/stopping', 'Parando',
+        isempty(EstadoEnergiaCodigo), 'Nao retornado',
+        EstadoEnergiaCodigo
+    )
+| extend
+    TipoSO = tostring(properties.storageProfile.osDisk.osType),
+    NomeSO = tostring(properties.extended.instanceView.osName),
+    VersaoSO = tostring(properties.extended.instanceView.osVersion),
+    GeracaoHyperV = tostring(properties.extended.instanceView.hyperVGeneration),
+    VersaoAgenteVM = tostring(properties.extended.instanceView.vmAgent.vmAgentVersion),
+    StatusSaudeVM = tostring(properties.extended.instanceView.vmHealth.status.displayStatus),
+    CodigoSaudeVM = tostring(properties.extended.instanceView.vmHealth.status.code),
+    DominioFalhaPlataforma = tostring(properties.extended.instanceView.platformFaultDomain),
+    DominioAtualizacaoPlataforma = tostring(properties.extended.instanceView.platformUpdateDomain)
+| extend
+    SistemaOperacionalDetalhado = case(
+        isnotempty(NomeSO) and isnotempty(VersaoSO),
+            strcat(NomeSO, ' ', VersaoSO),
+        isnotempty(NomeSO),
+            NomeSO,
+        isnotempty(TipoSO),
+            strcat(TipoSO, ' - versao nao retornada pelo Instance View'),
+        'Nao identificado'
+    )
+| extend
+    PublicadorImagem = tostring(properties.storageProfile.imageReference.publisher),
+    OfertaImagem = tostring(properties.storageProfile.imageReference.offer),
+    SKUImagem = tostring(properties.storageProfile.imageReference.sku),
+    VersaoImagemSolicitada = tostring(properties.storageProfile.imageReference.version),
+    VersaoImagemExata = tostring(properties.storageProfile.imageReference.exactVersion),
+    ArquiteturaImagem = tostring(properties.storageProfile.imageReference.architecture),
+    IdImagem = tostring(properties.storageProfile.imageReference.id),
+    IdImagemSharedGallery = tostring(properties.storageProfile.imageReference.sharedGalleryImageId),
+    IdImagemCommunityGallery = tostring(properties.storageProfile.imageReference.communityGalleryImageId)
+| extend
+    LicenseType = tostring(properties.licenseType)
+| extend
+    AHUB = case(
+        LicenseType =~ 'Windows_Server', 'Habilitado',
+        LicenseType =~ 'Windows_Client', 'Habilitado',
+        LicenseType =~ 'RHEL_BYOS', 'Habilitado',
+        LicenseType =~ 'SLES_BYOS', 'Habilitado',
+        isempty(LicenseType), 'Nao sinalizado ou nao aplicavel',
+        'Revisar LicenseType'
+    ),
+    ModeloLicenciamento = case(
+        LicenseType =~ 'Windows_Server',
+            'Windows Server com licenca propria',
+        LicenseType =~ 'Windows_Client',
+            'Windows Client com licenca propria',
+        LicenseType =~ 'RHEL_BYOS',
+            'Red Hat Enterprise Linux BYOS',
+        LicenseType =~ 'SLES_BYOS',
+            'SUSE Linux Enterprise Server BYOS',
+        isempty(LicenseType),
+            'Padrao da imagem ou nao aplicavel',
+        LicenseType
+    )
+| extend
+    SecurityType = tostring(properties.securityProfile.securityType),
+    SecureBootHabilitado = tostring(properties.securityProfile.uefiSettings.secureBootEnabled),
+    VTPMHabilitado = tostring(properties.securityProfile.uefiSettings.vTpmEnabled),
+    CriptografiaNoHost = tostring(properties.securityProfile.encryptionAtHost),
+    IdIdentidadeCriptografia = tostring(properties.securityProfile.encryptionIdentity.userAssignedIdentityResourceId),
+    ProxyAgentHabilitado = tostring(properties.securityProfile.proxyAgentSettings.enabled),
+    ProxyAgentModo = tostring(properties.securityProfile.proxyAgentSettings.mode)
+| extend
+    AdminUsername = tostring(properties.osProfile.adminUsername),
+    PermiteOperacaoExtensoes = tostring(properties.osProfile.allowExtensionOperations),
+    RequerSinalProvisionamentoGuest = tostring(properties.osProfile.requireGuestProvisionSignal),
+    ProvisionarAgenteWindows = tostring(properties.osProfile.windowsConfiguration.provisionVMAgent),
+    AtualizacoesAutomaticasWindows = tostring(properties.osProfile.windowsConfiguration.enableAutomaticUpdates),
+    PatchModeWindows = tostring(properties.osProfile.windowsConfiguration.patchSettings.patchMode),
+    AssessmentModeWindows = tostring(properties.osProfile.windowsConfiguration.patchSettings.assessmentMode),
+    HotpatchWindows = tostring(properties.osProfile.windowsConfiguration.patchSettings.enableHotpatching),
+    TimeZoneWindows = tostring(properties.osProfile.windowsConfiguration.timeZone),
+    ProvisionarAgenteLinux = tostring(properties.osProfile.linuxConfiguration.provisionVMAgent),
+    SenhaDesabilitadaLinux = tostring(properties.osProfile.linuxConfiguration.disablePasswordAuthentication),
+    PatchModeLinux = tostring(properties.osProfile.linuxConfiguration.patchSettings.patchMode),
+    AssessmentModeLinux = tostring(properties.osProfile.linuxConfiguration.patchSettings.assessmentMode)
+| extend
+    PatchModeEfetivo = iif(
+        TipoSO =~ 'Windows',
+        PatchModeWindows,
+        PatchModeLinux
+    ),
+    AssessmentModeEfetivo = iif(
+        TipoSO =~ 'Windows',
+        AssessmentModeWindows,
+        AssessmentModeLinux
+    ),
+    AgenteVMProvisionado = iif(
+        TipoSO =~ 'Windows',
+        ProvisionarAgenteWindows,
+        ProvisionarAgenteLinux
+    )
+| extend
+    NomeDiscoSO = tostring(properties.storageProfile.osDisk.name),
+    IdDiscoSO = tostring(properties.storageProfile.osDisk.managedDisk.id),
+    OpcaoCriacaoDiscoSO = tostring(properties.storageProfile.osDisk.createOption),
+    TamanhoDiscoSOGB = tostring(properties.storageProfile.osDisk.diskSizeGB),
+    TipoArmazenamentoDiscoSO = tostring(properties.storageProfile.osDisk.managedDisk.storageAccountType),
+    CacheDiscoSO = tostring(properties.storageProfile.osDisk.caching),
+    DeleteOptionDiscoSO = tostring(properties.storageProfile.osDisk.deleteOption),
+    WriteAcceleratorDiscoSO = tostring(properties.storageProfile.osDisk.writeAcceleratorEnabled),
+    IdDiskEncryptionSetSO = tostring(properties.storageProfile.osDisk.managedDisk.diskEncryptionSet.id),
+    EphemeralOSDisk = tostring(properties.storageProfile.osDisk.diffDiskSettings.option),
+    PosicionamentoEphemeralOSDisk = tostring(properties.storageProfile.osDisk.diffDiskSettings.placement),
+    ControladoraDiscos = tostring(properties.storageProfile.diskControllerType),
+    QuantidadeDiscosDados = array_length(properties.storageProfile.dataDisks),
+    DiscosDadosDetalhados = tostring(properties.storageProfile.dataDisks)
+| extend
+    IdAvailabilitySet = tostring(properties.availabilitySet.id),
+    IdProximityPlacementGroup = tostring(properties.proximityPlacementGroup.id),
+    IdDedicatedHost = tostring(properties.host.id),
+    IdDedicatedHostGroup = tostring(properties.hostGroup.id),
+    IdCapacityReservationGroup = tostring(properties.capacityReservation.capacityReservationGroup.id),
+    IdVMScaleSet = tostring(properties.virtualMachineScaleSet.id)
+| extend
+    QuantidadeNICs = array_length(properties.networkProfile.networkInterfaces),
+    IdNICPrimaria = tostring(properties.networkProfile.networkInterfaces[0].id),
+    DeleteOptionNICPrimaria = tostring(properties.networkProfile.networkInterfaces[0].properties.deleteOption),
+    InterfacesRedeReferenciadas = tostring(properties.networkProfile.networkInterfaces),
+    NetworkApiVersion = tostring(properties.networkProfile.networkApiVersion)
+| extend
+    BootDiagnosticsHabilitado = tostring(properties.diagnosticsProfile.bootDiagnostics.enabled),
+    BootDiagnosticsStorageURI = tostring(properties.diagnosticsProfile.bootDiagnostics.storageUri),
+    IdentidadeGerenciadaTipo = tostring(identity.type),
+    IdentidadePrincipalId = tostring(identity.principalId),
+    IdentidadeTenantId = tostring(identity.tenantId),
+    IdentidadesGerenciadasUsuario = tostring(identity.userAssignedIdentities)
+| extend
+    MarketplacePlanNome = tostring(plan.name),
+    MarketplacePlanProduto = tostring(plan.product),
+    MarketplacePlanPublicador = tostring(plan.publisher),
+    MarketplacePlanPromotionCode = tostring(plan.promotionCode),
+    TerminateNotificationHabilitada = tostring(properties.scheduledEventsProfile.terminateNotificationProfile.enable),
+    TerminateNotificationTimeout = tostring(properties.scheduledEventsProfile.terminateNotificationProfile.notBeforeTimeout),
+    OSImageNotificationHabilitada = tostring(properties.scheduledEventsProfile.osImageNotificationProfile.enable),
+    OSImageNotificationTimeout = tostring(properties.scheduledEventsProfile.osImageNotificationProfile.notBeforeTimeout),
+    Tags = tostring(tags)
 | join kind=leftouter (
     ResourceContainers
-    | where type =~ "microsoft.resources/subscriptions"
-    | project subscriptionId, subscriptionName = name
+    | where type == 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
 ) on subscriptionId
-| project-away subscriptionId1
-| summarize quantidade = count() by subscriptionName, subscriptionId, type
-| order by quantidade desc
+| project
+    NomeVM,
+    NomeComputador,
+    GrupoDeRecursos,
+    NomeSubscription,
+    IdSubscription,
+    Localizacao,
+    ZonasDisponibilidade,
+    IdRecurso,
+    VMId,
+    DataCriacaoUTC,
+    EstadoProvisionamento,
+    EstadoEnergia,
+    EstadoEnergiaCodigo,
+    EstadoEnergiaPortal,
+    StatusSaudeVM,
+    CodigoSaudeVM,
+    TamanhoVM,
+    VCPUsDisponiveis,
+    VCPUsPorCore,
+    PrioridadeVM,
+    PoliticaRemocaoSpot,
+    PrecoMaximoSpot,
+    UltraSSDPermitido,
+    HibernacaoHabilitada,
+    TipoSO,
+    NomeSO,
+    VersaoSO,
+    SistemaOperacionalDetalhado,
+    GeracaoHyperV,
+    VersaoAgenteVM,
+    DominioFalhaPlataforma,
+    DominioAtualizacaoPlataforma,
+    PublicadorImagem,
+    OfertaImagem,
+    SKUImagem,
+    VersaoImagemSolicitada,
+    VersaoImagemExata,
+    ArquiteturaImagem,
+    IdImagem,
+    IdImagemSharedGallery,
+    IdImagemCommunityGallery,
+    LicenseType,
+    AHUB,
+    ModeloLicenciamento,
+    SecurityType,
+    SecureBootHabilitado,
+    VTPMHabilitado,
+    CriptografiaNoHost,
+    IdIdentidadeCriptografia,
+    ProxyAgentHabilitado,
+    ProxyAgentModo,
+    AdminUsername,
+    AgenteVMProvisionado,
+    PermiteOperacaoExtensoes,
+    RequerSinalProvisionamentoGuest,
+    AtualizacoesAutomaticasWindows,
+    PatchModeEfetivo,
+    AssessmentModeEfetivo,
+    HotpatchWindows,
+    TimeZoneWindows,
+    SenhaDesabilitadaLinux,
+    NomeDiscoSO,
+    IdDiscoSO,
+    OpcaoCriacaoDiscoSO,
+    TamanhoDiscoSOGB,
+    TipoArmazenamentoDiscoSO,
+    CacheDiscoSO,
+    DeleteOptionDiscoSO,
+    WriteAcceleratorDiscoSO,
+    IdDiskEncryptionSetSO,
+    EphemeralOSDisk,
+    PosicionamentoEphemeralOSDisk,
+    ControladoraDiscos,
+    QuantidadeDiscosDados,
+    DiscosDadosDetalhados,
+    IdAvailabilitySet,
+    IdProximityPlacementGroup,
+    IdDedicatedHost,
+    IdDedicatedHostGroup,
+    IdCapacityReservationGroup,
+    IdVMScaleSet,
+    QuantidadeNICs,
+    IdNICPrimaria,
+    DeleteOptionNICPrimaria,
+    InterfacesRedeReferenciadas,
+    NetworkApiVersion,
+    BootDiagnosticsHabilitado,
+    BootDiagnosticsStorageURI,
+    IdentidadeGerenciadaTipo,
+    IdentidadePrincipalId,
+    IdentidadeTenantId,
+    IdentidadesGerenciadasUsuario,
+    MarketplacePlanNome,
+    MarketplacePlanProduto,
+    MarketplacePlanPublicador,
+    MarketplacePlanPromotionCode,
+    TerminateNotificationHabilitada,
+    TerminateNotificationTimeout,
+    OSImageNotificationHabilitada,
+    OSImageNotificationTimeout,
+    Tags
+| order by NomeSubscription asc, GrupoDeRecursos asc, NomeVM asc
