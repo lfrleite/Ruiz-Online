@@ -1,8 +1,8 @@
-# Recursos por BU e Tags
+# Detalhamento de Virtual Machines
 
 ## Objetivo
 
-Relacionar cada recurso Azure às principais tags de negócio, operação, FinOps e governança.
+Relacionar cada VM no Azure com suas informações devidamente detalhadas.
 
 ## Arquivo
 
