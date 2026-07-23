@@ -1,0 +1,161 @@
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     "SUBSCRIPTION-ID-1",
+//     "SUBSCRIPTION-ID-2"
+// )
+
+Resources
+| where type in~ (
+    "microsoft.network/publicipaddresses",
+    "microsoft.network/networkinterfaces"
+)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ "microsoft.resources/subscriptions"
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    resourceName = name,
+    resourceType = tostring(type),
+    resourceLocation = tostring(location),
+    resourceId = tostring(id)
+| extend
+    tipoRecurso = case(
+        resourceType =~ "microsoft.network/publicipaddresses", "Public IP Address",
+        resourceType =~ "microsoft.network/networkinterfaces", "Network Interface",
+        resourceType
+    )
+| extend
+    skuName = tostring(sku.name),
+    skuTier = tostring(sku.tier),
+    zones = tostring(zones),
+    provisioningState = tostring(properties.provisioningState)
+| extend
+    publicIpAddress = tostring(properties.ipAddress),
+    publicIpAllocationMethod = tostring(properties.publicIPAllocationMethod),
+    publicIpVersion = tostring(properties.publicIPAddressVersion),
+    publicIpIdleTimeoutInMinutes = tostring(properties.idleTimeoutInMinutes),
+    publicIpDnsFqdn = tostring(properties.dnsSettings.fqdn),
+    publicIpDnsLabel = tostring(properties.dnsSettings.domainNameLabel),
+    publicIpDdosSettings = tostring(properties.ddosSettings),
+    publicIpMigrationPhase = tostring(properties.migrationPhase)
+| extend
+    publicIpAssociatedTo = coalesce(
+        tostring(properties.ipConfiguration.id),
+        tostring(properties.natGateway.id),
+        tostring(properties.privateLinkService.id)
+    )
+| extend
+    nicVirtualMachineId = tostring(properties.virtualMachine.id),
+    nicPrivateEndpointId = tostring(properties.privateEndpoint.id),
+    nicNetworkSecurityGroupId = tostring(properties.networkSecurityGroup.id),
+    nicMacAddress = tostring(properties.macAddress),
+    nicPrimary = tostring(properties.primary),
+    enableAcceleratedNetworking = tostring(properties.enableAcceleratedNetworking),
+    enableIPForwarding = tostring(properties.enableIPForwarding),
+    nicDnsSettings = tostring(properties.dnsSettings),
+    nicIpConfigurations = tostring(properties.ipConfigurations)
+| extend
+    nicPrimaryPrivateIpAddress = tostring(properties.ipConfigurations[0].properties.privateIPAddress),
+    nicPrimaryPrivateIpAllocationMethod = tostring(properties.ipConfigurations[0].properties.privateIPAllocationMethod),
+    nicPrimarySubnetId = tostring(properties.ipConfigurations[0].properties.subnet.id),
+    nicPrimaryPublicIpId = tostring(properties.ipConfigurations[0].properties.publicIPAddress.id)
+| extend
+    associatedTo = case(
+        resourceType =~ "microsoft.network/publicipaddresses", publicIpAssociatedTo,
+        resourceType =~ "microsoft.network/networkinterfaces", coalesce(nicVirtualMachineId, nicPrivateEndpointId),
+        ""
+    )
+| extend
+    orphanCandidate = iff(isempty(associatedTo), "SIM", "NAO")
+| extend
+    statusAssociacao = case(
+        orphanCandidate == "SIM" and resourceType =~ "microsoft.network/publicipaddresses", "Revisar: Public IP sem associacao",
+        orphanCandidate == "SIM" and resourceType =~ "microsoft.network/networkinterfaces", "Revisar: NIC sem VM ou Private Endpoint",
+        resourceType =~ "microsoft.network/publicipaddresses" and isnotempty(publicIpAssociatedTo), "Public IP associado",
+        resourceType =~ "microsoft.network/networkinterfaces" and isnotempty(nicVirtualMachineId), "NIC associada a VM",
+        resourceType =~ "microsoft.network/networkinterfaces" and isnotempty(nicPrivateEndpointId), "NIC associada a Private Endpoint",
+        "Nao identificado"
+    )
+| extend
+    statusSkuPublicIp = case(
+        resourceType =~ "microsoft.network/publicipaddresses" and skuName =~ "Basic", "Revisar: Public IP Basic",
+        resourceType =~ "microsoft.network/publicipaddresses" and skuName =~ "Standard", "OK: Public IP Standard",
+        resourceType =~ "microsoft.network/publicipaddresses" and isempty(skuName), "Revisar: SKU nao identificado",
+        "Nao aplicavel"
+    )
+| extend
+    statusAlocacaoPublicIp = case(
+        resourceType =~ "microsoft.network/publicipaddresses" and publicIpAllocationMethod =~ "Static", "Static",
+        resourceType =~ "microsoft.network/publicipaddresses" and publicIpAllocationMethod =~ "Dynamic", "Revisar: Dynamic",
+        resourceType =~ "microsoft.network/publicipaddresses" and isempty(publicIpAllocationMethod), "Nao informado",
+        "Nao aplicavel"
+    )
+| extend
+    statusAcceleratedNetworking = case(
+        resourceType =~ "microsoft.network/networkinterfaces" and enableAcceleratedNetworking =~ "true", "Habilitado",
+        resourceType =~ "microsoft.network/networkinterfaces" and enableAcceleratedNetworking =~ "false", "Desabilitado",
+        resourceType =~ "microsoft.network/networkinterfaces" and isempty(enableAcceleratedNetworking), "Nao informado",
+        "Nao aplicavel"
+    )
+| extend
+    statusNSG = case(
+        resourceType =~ "microsoft.network/networkinterfaces" and isnotempty(nicNetworkSecurityGroupId), "NSG associado na NIC",
+        resourceType =~ "microsoft.network/networkinterfaces" and isempty(nicNetworkSecurityGroupId), "Sem NSG direto na NIC",
+        "Nao aplicavel"
+    )
+| extend
+    recomendacaoGeral = case(
+        orphanCandidate == "SIM" and resourceType =~ "microsoft.network/publicipaddresses", "Prioridade: validar remocao de Public IP nao associado",
+        orphanCandidate == "SIM" and resourceType =~ "microsoft.network/networkinterfaces", "Prioridade: validar remocao de NIC nao associada",
+        statusSkuPublicIp startswith "Revisar", "Prioridade: revisar SKU Basic de Public IP",
+        statusAlocacaoPublicIp startswith "Revisar", "Revisar Public IP com alocacao dinamica",
+        statusNSG == "Sem NSG direto na NIC", "Validar se controle de NSG esta aplicado na subnet",
+        "Sem alerta critico inicial"
+    )
+| project
+    subscriptionName,
+    subscriptionId,
+    resourceGroup,
+    tipoRecurso,
+    resourceName,
+    resourceType,
+    resourceLocation,
+    provisioningState,
+    orphanCandidate,
+    statusAssociacao,
+    recomendacaoGeral,
+    associatedTo,
+    skuName,
+    skuTier,
+    statusSkuPublicIp,
+    zones,
+    publicIpAddress,
+    publicIpAllocationMethod,
+    statusAlocacaoPublicIp,
+    publicIpVersion,
+    publicIpIdleTimeoutInMinutes,
+    publicIpDnsFqdn,
+    publicIpDnsLabel,
+    publicIpDdosSettings,
+    publicIpMigrationPhase,
+    publicIpAssociatedTo,
+    nicVirtualMachineId,
+    nicPrivateEndpointId,
+    nicNetworkSecurityGroupId,
+    statusNSG,
+    nicMacAddress,
+    nicPrimary,
+    enableAcceleratedNetworking,
+    statusAcceleratedNetworking,
+    enableIPForwarding,
+    nicPrimaryPrivateIpAddress,
+    nicPrimaryPrivateIpAllocationMethod,
+    nicPrimarySubnetId,
+    nicPrimaryPublicIpId,
+    nicDnsSettings,
+    nicIpConfigurations,
+    tags = tostring(tags),
+    resourceId
+| order by orphanCandidate desc, subscriptionName asc, tipoRecurso asc, resourceGroup asc, resourceName asc
