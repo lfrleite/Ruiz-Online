@@ -1,50 +1,38 @@
 Resources
 | extend
-    NomeRecurso = tostring(name),
-    TipoRecurso = tostring(type),
-    GrupoRecursos = tostring(resourceGroup),
-    Localizacao = tostring(location),
     TagBU = tostring(tags['BU']),
     TagCC = tostring(tags['CC']),
     TagAMBIENTE = tostring(tags['AMBIENTE']),
     TagCLIENTE = tostring(tags['CLIENTE']),
     TagCCOWNER = tostring(tags['CCOWNER'])
-| extend
-    QuantidadeTagsAusentes =
-        iif(isempty(TagBU), 1, 0)
-        + iif(isempty(TagCC), 1, 0)
-        + iif(isempty(TagAMBIENTE), 1, 0)
-        + iif(isempty(TagCLIENTE), 1, 0)
-        + iif(isempty(TagCCOWNER), 1, 0),
-    TagsAusentes = strcat(
-        iif(isempty(TagBU), 'BU; ', ''),
-        iif(isempty(TagCC), 'CC; ', ''),
-        iif(isempty(TagAMBIENTE), 'AMBIENTE; ', ''),
-        iif(isempty(TagCLIENTE), 'CLIENTE; ', ''),
-        iif(isempty(TagCCOWNER), 'CCOWNER; ', '')
-    )
-| where QuantidadeTagsAusentes > 0
+| where
+    isempty(TagBU)
+    or isempty(TagCC)
+    or isempty(TagAMBIENTE)
+    or isempty(TagCLIENTE)
+    or isempty(TagCCOWNER)
 | join kind=leftouter (
     ResourceContainers
     | where type == 'microsoft.resources/subscriptions'
     | project subscriptionId, NomeSubscription = name
 ) on subscriptionId
+| project-away subscriptionId1
 | project
     NomeSubscription,
     IdSubscription = subscriptionId,
-    NomeRecurso,
-    TipoRecurso,
-    GrupoRecursos,
-    Localizacao,
-    QuantidadeTagsAusentes,
-    TagsAusentes,
+    NomeRecurso = name,
+    TipoRecurso = type,
+    GrupoRecursos = resourceGroup,
+    Localizacao = location,
+    BUAusente = isempty(TagBU),
+    CCAusente = isempty(TagCC),
+    AmbienteAusente = isempty(TagAMBIENTE),
+    ClienteAusente = isempty(TagCLIENTE),
+    CCOwnerAusente = isempty(TagCCOWNER),
     TagBU,
     TagCC,
     TagAMBIENTE,
     TagCLIENTE,
     TagCCOWNER,
     ResourceId = id
-| order by QuantidadeTagsAusentes desc, NomeSubscription asc, TipoRecurso asc, NomeRecurso asc
-
-// Tags obrigatórias adotadas: BU, CC, AMBIENTE, CLIENTE e CCOWNER.
-// Para filtrar por subscriptions, insira o filtro logo após a linha "Resources".
+| order by NomeSubscription asc, TipoRecurso asc, NomeRecurso asc
