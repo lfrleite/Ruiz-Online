@@ -1,4 +1,4 @@
-resourcechanges
+ResourceChanges
 | extend
     DataCriacaoUTC = todatetime(properties.changeAttributes.timestamp),
     TipoAlteracao = tostring(properties.changeType),
@@ -11,27 +11,22 @@ resourcechanges
     CorrelationId = tostring(properties.changeAttributes.correlationId)
 | where DataCriacaoUTC >= ago(48h)
 | where TipoAlteracao == 'Create'
-| extend DataCriacaoGMT3 = datetime_add('hour', -3, DataCriacaoUTC)
-| join kind=leftouter (
-    Resources
-    | project
-        ResourceId = id,
-        NomeRecurso = name,
-        Localizacao = location,
-        Tags = tags
-) on ResourceId
+| extend
+    DataCriacaoGMT3 = datetime_add('hour', -3, DataCriacaoUTC),
+    NomeRecurso = tostring(split(ResourceId, '/', 8)),
+    GrupoRecursos = tostring(split(ResourceId, '/', 4))
 | join kind=leftouter (
     ResourceContainers
-    | where type =~ 'microsoft.resources/subscriptions'
+    | where type == 'microsoft.resources/subscriptions'
     | project subscriptionId, NomeSubscription = name
 ) on subscriptionId
+| project-away subscriptionId1
 | project
     NomeSubscription,
-    subscriptionId,
+    IdSubscription = subscriptionId,
     NomeRecurso,
     TipoRecurso,
-    GrupoRecursos = resourceGroup,
-    Localizacao,
+    GrupoRecursos,
     DataCriacao = format_datetime(DataCriacaoGMT3, 'dd-MM-yyyy_HH-mm-ss'),
     DataCriacaoGMT3,
     DataCriacaoUTC,
@@ -40,12 +35,5 @@ resourcechanges
     ClienteOrigem,
     Operacao,
     CorrelationId,
-    Tags,
     ResourceId
 | order by DataCriacaoUTC desc
-
-// Para filtrar por subscriptions, insira após a linha "resourcechanges":
-// | where subscriptionId in (
-//     'SUBSCRIPTION-ID-1',
-//     'SUBSCRIPTION-ID-2'
-// )
