@@ -1,0 +1,349 @@
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+Resources
+| where type in~ (
+    "microsoft.sql/servers",
+    "microsoft.sql/servers/databases",
+    "microsoft.sql/managedinstances",
+    "microsoft.dbforpostgresql/flexibleservers",
+    "microsoft.dbformysql/flexibleservers",
+    "microsoft.documentdb/databaseaccounts",
+    "microsoft.cache/redis",
+    "microsoft.synapse/workspaces",
+    "microsoft.databricks/workspaces"
+)
+| extend
+    resourceId = tostring(id),
+    resourceName = tostring(name),
+    resourceType = tostring(type),
+    resourceLocation = tostring(location)
+| extend
+    tipoServico = case(
+        resourceType =~ "microsoft.sql/servers", "Azure SQL Server",
+        resourceType =~ "microsoft.sql/servers/databases", "Azure SQL Database",
+        resourceType =~ "microsoft.sql/managedinstances", "Azure SQL Managed Instance",
+        resourceType =~ "microsoft.dbforpostgresql/flexibleservers", "Azure Database for PostgreSQL Flexible Server",
+        resourceType =~ "microsoft.dbformysql/flexibleservers", "Azure Database for MySQL Flexible Server",
+        resourceType =~ "microsoft.documentdb/databaseaccounts", "Azure Cosmos DB",
+        resourceType =~ "microsoft.cache/redis", "Azure Cache for Redis",
+        resourceType =~ "microsoft.synapse/workspaces", "Azure Synapse Workspace",
+        resourceType =~ "microsoft.databricks/workspaces", "Azure Databricks Workspace",
+        resourceType
+    )
+| extend
+    parentServerName = case(
+        resourceType =~ "microsoft.sql/servers/databases", tostring(split(resourceId, "/")[8]),
+        ""
+    )
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ "microsoft.resources/subscriptions"
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    createdAtUTC = todatetime(systemData.createdAt),
+    createdAtGMT3 = todatetime(systemData.createdAt) - 3h,
+    lastModifiedUTC = todatetime(systemData.lastModifiedAt),
+    lastModifiedGMT3 = todatetime(systemData.lastModifiedAt) - 3h
+| extend
+    createdBy = tostring(systemData.createdBy),
+    lastModifiedBy = tostring(systemData.lastModifiedBy)
+| extend
+    skuName = tostring(sku.name),
+    skuTier = tostring(sku.tier),
+    skuFamily = tostring(sku.family),
+    skuSize = tostring(sku.size),
+    skuCapacity = tostring(sku.capacity)
+| extend
+    engineVersion = coalesce(
+        tostring(properties.version),
+        tostring(properties.currentVersion),
+        tostring(properties.redisVersion),
+        tostring(properties.serverVersion)
+    )
+| extend
+    state = coalesce(
+        tostring(properties.state),
+        tostring(properties.status),
+        tostring(properties.provisioningState)
+    ),
+    provisioningState = tostring(properties.provisioningState)
+| extend
+    publicNetworkAccess = coalesce(
+        tostring(properties.publicNetworkAccess),
+        tostring(properties.publicNetworkAccessFlag)
+    )
+| extend
+    minimumTlsVersion = coalesce(
+        tostring(properties.minimalTlsVersion),
+        tostring(properties.minimumTlsVersion),
+        tostring(properties.minTlsVersion)
+    )
+| extend
+    sslEnforcement = tostring(properties.sslEnforcement),
+    infrastructureEncryption = tostring(properties.infrastructureEncryption),
+    encryptionProtector = tostring(properties.encryptionProtector),
+    transparentDataEncryption = tostring(properties.transparentDataEncryption.status)
+| extend
+    storageSizeGB = coalesce(
+        tostring(properties.storage.storageSizeGB),
+        tostring(properties.storageProfile.storageMB),
+        tostring(properties.storageSizeGB),
+        tostring(properties.maxSizeBytes)
+    ),
+    storageAutoGrow = tostring(properties.storage.autoGrow),
+    storageIops = tostring(properties.storage.iops),
+    storageThroughput = tostring(properties.storage.throughput)
+| extend
+    backupRetentionDays = coalesce(
+        tostring(properties.backup.backupRetentionDays),
+        tostring(properties.backupRetentionDays),
+        tostring(properties.currentBackupStorageRedundancy)
+    ),
+    backupGeoRedundant = coalesce(
+        tostring(properties.backup.geoRedundantBackup),
+        tostring(properties.geoRedundantBackup),
+        tostring(properties.requestedBackupStorageRedundancy),
+        tostring(properties.currentBackupStorageRedundancy)
+    ),
+    earliestRestoreDate = tostring(properties.earliestRestoreDate)
+| extend
+    highAvailabilityMode = tostring(properties.highAvailability.mode),
+    highAvailabilityState = tostring(properties.highAvailability.state),
+    standbyAvailabilityZone = tostring(properties.highAvailability.standbyAvailabilityZone),
+    zoneRedundant = tostring(properties.zoneRedundant),
+    availabilityZone = tostring(properties.availabilityZone),
+    zones = tostring(zones)
+| extend
+    replicaRole = coalesce(
+        tostring(properties.replica.role),
+        tostring(properties.replicationRole),
+        tostring(properties.role)
+    ),
+    sourceServerResourceId = coalesce(
+        tostring(properties.sourceServerResourceId),
+        tostring(properties.sourceDatabaseId),
+        tostring(properties.restorePointInTime)
+    )
+| extend
+    licenseType = tostring(properties.licenseType),
+    collation = tostring(properties.collation),
+    compatibilityLevel = tostring(properties.compatibilityLevel),
+    readScale = tostring(properties.readScale),
+    requestedServiceObjectiveName = tostring(properties.requestedServiceObjectiveName),
+    currentServiceObjectiveName = tostring(properties.currentServiceObjectiveName),
+    databaseStatus = tostring(properties.status)
+| extend
+    cosmosOfferType = tostring(properties.databaseAccountOfferType),
+    cosmosConsistency = tostring(properties.consistencyPolicy.defaultConsistencyLevel),
+    cosmosLocations = tostring(properties.locations),
+    cosmosWriteLocations = tostring(properties.writeLocations),
+    cosmosReadLocations = tostring(properties.readLocations),
+    cosmosEnableMultipleWriteLocations = tostring(properties.enableMultipleWriteLocations),
+    cosmosEnableAutomaticFailover = tostring(properties.enableAutomaticFailover),
+    cosmosCapabilities = tostring(properties.capabilities),
+    cosmosBackupPolicy = tostring(properties.backupPolicy),
+    cosmosApiKind = tostring(kind)
+| extend
+    redisVersion = tostring(properties.redisVersion),
+    redisSkuFamily = tostring(sku.family),
+    redisEnableNonSslPort = tostring(properties.enableNonSslPort),
+    redisShardCount = tostring(properties.shardCount),
+    redisSubnetId = tostring(properties.subnetId),
+    redisStaticIP = tostring(properties.staticIP),
+    redisPrivateStaticIP = tostring(properties.privateStaticIP),
+    redisHostName = tostring(properties.hostName),
+    redisPort = tostring(properties.port),
+    redisSslPort = tostring(properties.sslPort)
+| extend
+    synapseManagedResourceGroupName = tostring(properties.managedResourceGroupName),
+    synapseConnectivityEndpoints = tostring(properties.connectivityEndpoints),
+    synapseDefaultDataLakeStorage = tostring(properties.defaultDataLakeStorage),
+    synapseSqlAdministratorLogin = tostring(properties.sqlAdministratorLogin)
+| extend
+    databricksManagedResourceGroupId = tostring(properties.managedResourceGroupId),
+    databricksWorkspaceUrl = tostring(properties.workspaceUrl),
+    databricksSku = tostring(sku.name),
+    databricksPublicNetworkAccess = tostring(properties.publicNetworkAccess),
+    databricksRequiredNsgRules = tostring(properties.requiredNsgRules),
+    databricksParameters = tostring(properties.parameters)
+| extend
+    privateEndpointConnections = tostring(properties.privateEndpointConnections),
+    networkAcls = tostring(properties.networkAcls),
+    firewallRules = tostring(properties.firewallRules),
+    virtualNetworkRules = tostring(properties.virtualNetworkRules)
+| extend
+    identidadeTipo = tostring(identity.type),
+    identidadePrincipalId = tostring(identity.principalId),
+    identidadesUsuario = tostring(identity.userAssignedIdentities)
+| extend
+    criadoEmTag = coalesce(
+        tostring(tags["Criado em"]),
+        tostring(tags["criado em"]),
+        tostring(tags["CriadoEm"]),
+        tostring(tags["createdOn"]),
+        tostring(tags["CreatedOn"]),
+        tostring(tags["CreatedAt"]),
+        tostring(tags["createdAt"])
+    )
+| extend
+    criadoEmTagUTC = todatetime(criadoEmTag),
+    criadoEmTagGMT3 = todatetime(criadoEmTag) - 3h
+| extend
+    statusPublicNetworkAccess = case(
+        publicNetworkAccess =~ "Disabled", "OK: acesso publico desabilitado",
+        publicNetworkAccess =~ "Enabled", "Revisar: acesso publico habilitado",
+        isempty(publicNetworkAccess), "Nao informado",
+        publicNetworkAccess
+    ),
+    statusTLS = case(
+        minimumTlsVersion in~ ("1.3", "1.2"), "OK",
+        minimumTlsVersion in~ ("1.0", "1.1"), "Revisar: TLS antigo",
+        isempty(minimumTlsVersion), "Revisar: TLS nao identificado",
+        "Revisar"
+    ),
+    statusBackup = case(
+        isempty(backupRetentionDays), "Revisar: backup retention nao identificado",
+        backupRetentionDays in~ ("0", "Disabled", "None"), "Revisar: backup retention ausente/desabilitado",
+        "OK/Revisar conforme politica"
+    ),
+    statusHA = case(
+        highAvailabilityMode =~ "ZoneRedundant", "OK: HA zone redundant",
+        zoneRedundant =~ "true", "OK: zone redundant",
+        highAvailabilityMode =~ "SameZone", "Revisar: HA same zone",
+        isempty(highAvailabilityMode) and isempty(zoneRedundant), "Nao informado/nao aplicavel",
+        "Revisar conforme criticidade"
+    ),
+    statusPrivateEndpoint = case(
+        isnotempty(privateEndpointConnections), "Private Endpoint configurado",
+        isempty(privateEndpointConnections), "Sem evidencia de Private Endpoint",
+        "Nao identificado"
+    )
+| extend
+    statusVersao = case(
+        tipoServico has "PostgreSQL" and engineVersion startswith "9.", "Retirement/legado: PostgreSQL 9.x",
+        tipoServico has "PostgreSQL" and engineVersion startswith "10", "Retirement/legado: PostgreSQL 10",
+        tipoServico has "PostgreSQL" and engineVersion startswith "11", "Revisar: PostgreSQL 11",
+        tipoServico has "MySQL" and engineVersion startswith "5.6", "Retirement/legado: MySQL 5.6",
+        tipoServico has "MySQL" and engineVersion startswith "5.7", "Revisar: MySQL 5.7",
+        tipoServico has "Redis" and redisVersion startswith "4", "Retirement/legado: Redis 4",
+        tipoServico has "Redis" and redisVersion startswith "5", "Revisar: Redis 5",
+        isempty(engineVersion) and isempty(redisVersion), "Versao nao identificada",
+        "OK/Revisar conforme matriz oficial"
+    )
+| extend
+    recomendacaoGeral = case(
+        statusTLS startswith "Revisar", "Prioridade: validar TLS minimo",
+        statusPublicNetworkAccess startswith "Revisar", "Prioridade: revisar exposicao publica",
+        statusVersao startswith "Retirement", "Prioridade: versao legada/retirement",
+        statusBackup startswith "Revisar", "Prioridade: validar backup retention",
+        statusHA startswith "Revisar", "Revisar alta disponibilidade conforme criticidade",
+        statusPrivateEndpoint == "Sem evidencia de Private Endpoint", "Revisar necessidade de acesso privado",
+        "Sem alerta critico inicial"
+    )
+| project
+    subscriptionName,
+    subscriptionId,
+    resourceGroup,
+    tipoServico,
+    resourceName,
+    parentServerName,
+    resourceType,
+    resourceLocation,
+    state,
+    provisioningState,
+    skuName,
+    skuTier,
+    skuFamily,
+    skuSize,
+    skuCapacity,
+    engineVersion,
+    statusVersao,
+    publicNetworkAccess,
+    statusPublicNetworkAccess,
+    minimumTlsVersion,
+    statusTLS,
+    sslEnforcement,
+    infrastructureEncryption,
+    encryptionProtector,
+    transparentDataEncryption,
+    storageSizeGB,
+    storageAutoGrow,
+    storageIops,
+    storageThroughput,
+    backupRetentionDays,
+    backupGeoRedundant,
+    earliestRestoreDate,
+    statusBackup,
+    highAvailabilityMode,
+    highAvailabilityState,
+    standbyAvailabilityZone,
+    zoneRedundant,
+    availabilityZone,
+    zones,
+    statusHA,
+    replicaRole,
+    sourceServerResourceId,
+    licenseType,
+    collation,
+    compatibilityLevel,
+    readScale,
+    requestedServiceObjectiveName,
+    currentServiceObjectiveName,
+    databaseStatus,
+    cosmosOfferType,
+    cosmosConsistency,
+    cosmosLocations,
+    cosmosWriteLocations,
+    cosmosReadLocations,
+    cosmosEnableMultipleWriteLocations,
+    cosmosEnableAutomaticFailover,
+    cosmosCapabilities,
+    cosmosBackupPolicy,
+    cosmosApiKind,
+    redisVersion,
+    redisSkuFamily,
+    redisEnableNonSslPort,
+    redisShardCount,
+    redisSubnetId,
+    redisStaticIP,
+    redisPrivateStaticIP,
+    redisHostName,
+    redisPort,
+    redisSslPort,
+    synapseManagedResourceGroupName,
+    synapseConnectivityEndpoints,
+    synapseDefaultDataLakeStorage,
+    synapseSqlAdministratorLogin,
+    databricksManagedResourceGroupId,
+    databricksWorkspaceUrl,
+    databricksSku,
+    databricksPublicNetworkAccess,
+    databricksRequiredNsgRules,
+    databricksParameters,
+    privateEndpointConnections,
+    statusPrivateEndpoint,
+    networkAcls,
+    firewallRules,
+    virtualNetworkRules,
+    identidadeTipo,
+    identidadePrincipalId,
+    identidadesUsuario,
+    recomendacaoGeral,
+    createdAtUTC,
+    createdAtGMT3,
+    lastModifiedUTC,
+    lastModifiedGMT3,
+    createdBy,
+    lastModifiedBy,
+    criadoEmTag,
+    criadoEmTagUTC,
+    criadoEmTagGMT3,
+    tags = tostring(tags),
+    resourceId
+| order by subscriptionName asc, tipoServico asc, resourceGroup asc, resourceName asc
