@@ -1,5 +1,9 @@
 Resources
 | extend
+    NomeRecurso = tostring(name),
+    TipoRecurso = tostring(type),
+    GrupoRecursos = tostring(resourceGroup),
+    Localizacao = tostring(location),
     TagBU = tostring(tags['BU']),
     TagCC = tostring(tags['CC']),
     TagAMBIENTE = tostring(tags['AMBIENTE']),
@@ -7,31 +11,31 @@ Resources
     TagCCOWNER = tostring(tags['CCOWNER'])
 | extend
     QuantidadeTagsAusentes =
-        iff(isempty(TagBU), 1, 0)
-        + iff(isempty(TagCC), 1, 0)
-        + iff(isempty(TagAMBIENTE), 1, 0)
-        + iff(isempty(TagCLIENTE), 1, 0)
-        + iff(isempty(TagCCOWNER), 1, 0),
+        iif(isempty(TagBU), 1, 0)
+        + iif(isempty(TagCC), 1, 0)
+        + iif(isempty(TagAMBIENTE), 1, 0)
+        + iif(isempty(TagCLIENTE), 1, 0)
+        + iif(isempty(TagCCOWNER), 1, 0),
     TagsAusentes = strcat(
-        iff(isempty(TagBU), 'BU; ', ''),
-        iff(isempty(TagCC), 'CC; ', ''),
-        iff(isempty(TagAMBIENTE), 'AMBIENTE; ', ''),
-        iff(isempty(TagCLIENTE), 'CLIENTE; ', ''),
-        iff(isempty(TagCCOWNER), 'CCOWNER; ', '')
+        iif(isempty(TagBU), 'BU; ', ''),
+        iif(isempty(TagCC), 'CC; ', ''),
+        iif(isempty(TagAMBIENTE), 'AMBIENTE; ', ''),
+        iif(isempty(TagCLIENTE), 'CLIENTE; ', ''),
+        iif(isempty(TagCCOWNER), 'CCOWNER; ', '')
     )
 | where QuantidadeTagsAusentes > 0
 | join kind=leftouter (
     ResourceContainers
-    | where type =~ 'microsoft.resources/subscriptions'
+    | where type == 'microsoft.resources/subscriptions'
     | project subscriptionId, NomeSubscription = name
 ) on subscriptionId
 | project
     NomeSubscription,
-    subscriptionId,
-    NomeRecurso = name,
-    TipoRecurso = type,
-    GrupoRecursos = resourceGroup,
-    Localizacao = location,
+    IdSubscription = subscriptionId,
+    NomeRecurso,
+    TipoRecurso,
+    GrupoRecursos,
+    Localizacao,
     QuantidadeTagsAusentes,
     TagsAusentes,
     TagBU,
@@ -39,17 +43,8 @@ Resources
     TagAMBIENTE,
     TagCLIENTE,
     TagCCOWNER,
-    TagsAtuais = tags,
     ResourceId = id
 | order by QuantidadeTagsAusentes desc, NomeSubscription asc, TipoRecurso asc, NomeRecurso asc
 
-// Tags obrigatórias adotadas nesta versão:
-// BU, CC, AMBIENTE, CLIENTE e CCOWNER.
-//
-// Para alterar a política, ajuste os campos nas etapas "extend".
-//
-// Para filtrar por subscriptions, insira após a linha "Resources":
-// | where subscriptionId in (
-//     'SUBSCRIPTION-ID-1',
-//     'SUBSCRIPTION-ID-2'
-// )
+// Tags obrigatórias adotadas: BU, CC, AMBIENTE, CLIENTE e CCOWNER.
+// Para filtrar por subscriptions, insira o filtro logo após a linha "Resources".
