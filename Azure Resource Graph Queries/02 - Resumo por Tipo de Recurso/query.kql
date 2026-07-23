@@ -1,18 +1,25 @@
 Resources
-| join kind=leftouter (
-    ResourceContainers
-    | where type =~ 'microsoft.resources/subscriptions'
-    | project subscriptionId, NomeSubscription = name
-) on subscriptionId
+| extend
+    TipoRecurso = tostring(type),
+    GrupoRecursos = tostring(resourceGroup),
+    LocalizacaoRecurso = tostring(location)
 | summarize
     QuantidadeRecursos = count(),
-    QuantidadeResourceGroups = dcount(resourceGroup),
-    QuantidadeLocalizacoes = dcount(location)
-    by NomeSubscription, subscriptionId, TipoRecurso = type
+    QuantidadeResourceGroups = dcount(GrupoRecursos),
+    QuantidadeLocalizacoes = dcount(LocalizacaoRecurso)
+    by subscriptionId, TipoRecurso
+| join kind=leftouter (
+    ResourceContainers
+    | where type == 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project
+    NomeSubscription,
+    IdSubscription = subscriptionId,
+    TipoRecurso,
+    QuantidadeRecursos,
+    QuantidadeResourceGroups,
+    QuantidadeLocalizacoes
 | order by NomeSubscription asc, QuantidadeRecursos desc, TipoRecurso asc
 
-// Para filtrar por subscriptions, insira após a linha "Resources":
-// | where subscriptionId in (
-//     'SUBSCRIPTION-ID-1',
-//     'SUBSCRIPTION-ID-2'
-// )
+// Para filtrar por subscriptions, insira o filtro logo após a linha "Resources".
