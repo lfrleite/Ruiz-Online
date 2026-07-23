@@ -1,4 +1,4 @@
-resourcechanges
+ResourceChanges
 | extend
     DataCriacaoUTC = todatetime(properties.changeAttributes.timestamp),
     TipoAlteracao = tostring(properties.changeType),
@@ -13,46 +13,20 @@ resourcechanges
 | where TipoAlteracao == 'Create'
 | extend
     DataCriacaoGMT3 = datetime_add('hour', -3, DataCriacaoUTC),
-    ResourceIdNormalizado = tolower(ResourceId)
-| join kind=leftouter (
-    Resources
-    | extend ResourceIdNormalizado = tolower(id)
-    | project
-        ResourceIdNormalizado,
-        NomeRecurso = name,
-        GrupoRecursos = resourceGroup,
-        Localizacao = location,
-        TagAMBIENTE = tostring(tags['AMBIENTE']),
-        TagBACKUP = tostring(tags['BACKUP']),
-        TagBU = tostring(tags['BU']),
-        TagCAPEX = tostring(tags['CAPEX']),
-        TagCC = tostring(tags['CC']),
-        TagCCOWNER = tostring(tags['CCOWNER']),
-        TagCLIENTE = tostring(tags['CLIENTE']),
-        TagDISPONIBILIDADE = tostring(tags['DISPONIBILIDADE']),
-        TagDOMINIO = tostring(tags['DOMINIO']),
-        TagENDOFLIFE = tostring(tags['ENDOFLIFE']),
-        TagFUNCAO = tostring(tags['FUNCAO']),
-        TagPRODUTO = tostring(tags['PRODUTO']),
-        TagRESERVA = tostring(tags['RESERVA']),
-        TagSO = tostring(tags['SO']),
-        TagSQUAD = tostring(tags['SQUAD']),
-        TagSTART = tostring(tags['START']),
-        TagSTOP = tostring(tags['STOP']),
-        TagWAVE = tostring(tags['WAVE'])
-) on ResourceIdNormalizado
+    NomeRecurso = tostring(split(ResourceId, '/', 8)),
+    GrupoRecursos = tostring(split(ResourceId, '/', 4))
 | join kind=leftouter (
     ResourceContainers
     | where type == 'microsoft.resources/subscriptions'
     | project subscriptionId, NomeSubscription = name
 ) on subscriptionId
+| project-away subscriptionId1
 | project
     NomeSubscription,
     IdSubscription = subscriptionId,
     NomeRecurso,
     TipoRecurso,
     GrupoRecursos,
-    Localizacao,
     DataCriacao = format_datetime(DataCriacaoGMT3, 'dd-MM-yyyy_HH-mm-ss'),
     DataCriacaoGMT3,
     DataCriacaoUTC,
@@ -61,25 +35,5 @@ resourcechanges
     ClienteOrigem,
     Operacao,
     CorrelationId,
-    TagAMBIENTE,
-    TagBACKUP,
-    TagBU,
-    TagCAPEX,
-    TagCC,
-    TagCCOWNER,
-    TagCLIENTE,
-    TagDISPONIBILIDADE,
-    TagDOMINIO,
-    TagENDOFLIFE,
-    TagFUNCAO,
-    TagPRODUTO,
-    TagRESERVA,
-    TagSO,
-    TagSQUAD,
-    TagSTART,
-    TagSTOP,
-    TagWAVE,
     ResourceId
 | order by DataCriacaoUTC desc
-
-// Para filtrar por subscriptions, insira o filtro logo após a linha "resourcechanges".
