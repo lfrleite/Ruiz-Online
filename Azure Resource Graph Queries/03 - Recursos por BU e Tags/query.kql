@@ -12,10 +12,26 @@ Resources
     | project subscriptionId, subscriptionName = name
 ) on subscriptionId
 | project-away subscriptionId1
-| extend diskState = tostring(properties.diskState)
-| extend attachedTo = tostring(managedBy)
-| extend isUnattached = iff(isempty(attachedTo) or diskState =~ "Unattached", "SIM", "NAO")
-| extend criadoEmTag = coalesce(tostring(tags["Criado em"]), tostring(tags["criado em"]), tostring(tags["CriadoEm"]), tostring(tags["createdOn"]))
+| extend
+    diskState = tostring(properties.diskState),
+    attachedTo = tostring(managedBy)
+| extend
+    isUnattached = iff(isempty(attachedTo) or diskState =~ "Unattached", "SIM", "NAO")
+| extend
+    criadoEmTag = coalesce(
+        tostring(tags["Criado em"]),
+        tostring(tags["criado em"]),
+        tostring(tags["CriadoEm"]),
+        tostring(tags["createdOn"])
+    )
+| extend
+    createdAtUTC = todatetime(properties.timeCreated),
+    systemCreatedAtUTC = todatetime(systemData.createdAt),
+    criadoEmTagUTC = todatetime(criadoEmTag)
+| extend
+    createdAtGMT3 = datetime_add("hour", -3, createdAtUTC),
+    systemCreatedAtGMT3 = datetime_add("hour", -3, systemCreatedAtUTC),
+    criadoEmTagGMT3 = datetime_add("hour", -3, criadoEmTagUTC)
 | project
     subscriptionName,
     subscriptionId,
@@ -35,10 +51,17 @@ Resources
     networkAccessPolicy = tostring(properties.networkAccessPolicy),
     publicNetworkAccess = tostring(properties.publicNetworkAccess),
     zones = tostring(zones),
-    createdAt = tostring(properties.timeCreated),
-    systemCreatedAt = tostring(systemData.createdAt),
+    createdAtUTC = format_datetime(createdAtUTC, "yyyy-MM-dd HH:mm:ss"),
+    createdAtGMT3 = format_datetime(createdAtGMT3, "yyyy-MM-dd HH:mm:ss"),
+    systemCreatedAtUTC = format_datetime(systemCreatedAtUTC, "yyyy-MM-dd HH:mm:ss"),
+    systemCreatedAtGMT3 = format_datetime(systemCreatedAtGMT3, "yyyy-MM-dd HH:mm:ss"),
     createdBy = tostring(systemData.createdBy),
     criadoEmTag,
+    criadoEmTagGMT3 = iff(
+        isnotnull(criadoEmTagGMT3),
+        format_datetime(criadoEmTagGMT3, "yyyy-MM-dd HH:mm:ss"),
+        ""
+    ),
     tags = tostring(tags),
     id
 | order by isUnattached desc, subscriptionName asc, resourceGroup asc, diskName asc
