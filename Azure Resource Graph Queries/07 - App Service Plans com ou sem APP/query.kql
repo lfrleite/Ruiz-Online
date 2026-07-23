@@ -1,0 +1,212 @@
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+Resources
+| where type =~ "microsoft.web/serverfarms"
+| extend
+    appServicePlanId = tolower(id),
+    appServicePlanName = name,
+    resourceType = tostring(type),
+    resourceId = tostring(id),
+    resourceLocation = tostring(location)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ "microsoft.resources/subscriptions"
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| join kind=leftouter (
+    Resources
+    | where type =~ "microsoft.web/sites"
+    | extend appServicePlanId = tolower(tostring(properties.serverFarmId))
+    | summarize
+        appCount = count(),
+        appNames = make_set(name, 500),
+        appKinds = make_set(kind, 100),
+        appStates = make_set(tostring(properties.state), 100),
+        appDefaultHostNames = make_set(tostring(properties.defaultHostName), 500),
+        appHttpsOnlyValues = make_set(tostring(properties.httpsOnly), 20),
+        appPublicNetworkAccessValues = make_set(tostring(properties.publicNetworkAccess), 20)
+        by appServicePlanId
+) on appServicePlanId
+| project-away appServicePlanId1
+| join kind=leftouter (
+    Resources
+    | where type =~ "microsoft.web/sites/slots"
+    | extend appServicePlanId = tolower(tostring(properties.serverFarmId))
+    | summarize
+        slotCount = count(),
+        slotNames = make_set(name, 500),
+        slotKinds = make_set(kind, 100),
+        slotStates = make_set(tostring(properties.state), 100),
+        slotDefaultHostNames = make_set(tostring(properties.defaultHostName), 500)
+        by appServicePlanId
+) on appServicePlanId
+| project-away appServicePlanId1
+| extend
+    appCount = iff(isnull(appCount), 0, appCount),
+    slotCount = iff(isnull(slotCount), 0, slotCount)
+| extend
+    totalWorkloadsAssociados = appCount + slotCount,
+    emptyPlanCandidate = iff(appCount == 0 and slotCount == 0, "SIM", "NAO")
+| extend
+    systemCreatedAtUTC = todatetime(systemData.createdAt),
+    systemCreatedAtGMT3 = todatetime(systemData.createdAt) - 3h
+| extend
+    criadoEmTag = coalesce(
+        tostring(tags["Criado em"]),
+        tostring(tags["criado em"]),
+        tostring(tags["CriadoEm"]),
+        tostring(tags["createdOn"]),
+        tostring(tags["CreatedOn"]),
+        tostring(tags["CreatedAt"]),
+        tostring(tags["createdAt"])
+    )
+| extend
+    criadoEmTagUTC = todatetime(criadoEmTag),
+    criadoEmTagGMT3 = todatetime(criadoEmTag) - 3h
+| extend
+    skuName = tostring(sku.name),
+    skuTier = tostring(sku.tier),
+    skuSize = tostring(sku.size),
+    skuFamily = tostring(sku.family),
+    skuCapacity = tostring(sku.capacity)
+| extend
+    reservedLinux = tostring(properties.reserved)
+| extend
+    sistemaOperacionalPlano = case(
+        reservedLinux =~ "true", "Linux",
+        reservedLinux =~ "false", "Windows",
+        "Nao identificado"
+    )
+| extend
+    tipoPlano = case(
+        skuTier =~ "Dynamic", "Consumption",
+        skuTier =~ "ElasticPremium", "Elastic Premium",
+        skuTier has "Premium", "Premium",
+        skuTier has "Standard", "Standard",
+        skuTier has "Basic", "Basic",
+        skuTier has "Free", "Free",
+        skuTier has "Shared", "Shared",
+        skuTier has "Isolated", "Isolated/App Service Environment",
+        isnotempty(skuTier), skuTier,
+        "Nao identificado"
+    )
+| extend
+    recomendacaoInicial = case(
+        emptyPlanCandidate == "SIM", "Revisar: plano sem apps ou slots associados",
+        skuTier has "Free" or skuTier has "Shared", "Baixo custo/capacidade limitada",
+        skuTier has "Basic", "Revisar aderencia para producao",
+        skuTier has "Premium" and totalWorkloadsAssociados <= 1, "Revisar dimensionamento/custo",
+        skuTier has "Isolated", "Revisar dependencia de App Service Environment",
+        "Sem alerta inicial"
+    )
+| extend
+    provisioningState = tostring(properties.provisioningState),
+    status = tostring(properties.status),
+    planKind = tostring(kind),
+    zoneRedundant = tostring(properties.zoneRedundant),
+    perSiteScaling = tostring(properties.perSiteScaling),
+    elasticScaleEnabled = tostring(properties.elasticScaleEnabled),
+    asyncScalingEnabled = tostring(properties.asyncScalingEnabled),
+    numberOfWorkers = tostring(properties.numberOfWorkers),
+    currentNumberOfWorkers = tostring(properties.currentNumberOfWorkers),
+    maximumNumberOfWorkers = tostring(properties.maximumNumberOfWorkers),
+    maximumElasticWorkerCount = tostring(properties.maximumElasticWorkerCount),
+    targetWorkerCount = tostring(properties.targetWorkerCount),
+    targetWorkerSizeId = tostring(properties.targetWorkerSizeId),
+    workerSize = tostring(properties.workerSize),
+    workerSizeId = tostring(properties.workerSizeId),
+    currentWorkerSize = tostring(properties.currentWorkerSize),
+    currentWorkerSizeId = tostring(properties.currentWorkerSizeId)
+| extend
+    hostingEnvironmentId = tostring(properties.hostingEnvironmentProfile.id),
+    hostingEnvironmentName = tostring(properties.hostingEnvironmentProfile.name),
+    kubeEnvironmentId = tostring(properties.kubeEnvironmentProfile.id),
+    isSpot = tostring(properties.isSpot),
+    spotExpirationTimeUTC = todatetime(properties.spotExpirationTime),
+    spotExpirationTimeGMT3 = todatetime(properties.spotExpirationTime) - 3h,
+    freeOfferExpirationTimeUTC = todatetime(properties.freeOfferExpirationTime),
+    freeOfferExpirationTimeGMT3 = todatetime(properties.freeOfferExpirationTime) - 3h
+| extend
+    hyperV = tostring(properties.hyperV),
+    isXenon = tostring(properties.isXenon),
+    containerSize = tostring(properties.containerSize),
+    adminSiteName = tostring(properties.adminSiteName),
+    geoRegion = tostring(properties.geoRegion),
+    computeMode = tostring(properties.computeMode),
+    siteMode = tostring(properties.siteMode)
+| project
+    subscriptionName,
+    subscriptionId,
+    resourceGroup,
+    appServicePlanName,
+    resourceLocation,
+    resourceType,
+    planKind,
+    provisioningState,
+    status,
+    tipoPlano,
+    sistemaOperacionalPlano,
+    skuName,
+    skuTier,
+    skuSize,
+    skuFamily,
+    skuCapacity,
+    appCount,
+    slotCount,
+    totalWorkloadsAssociados,
+    emptyPlanCandidate,
+    recomendacaoInicial,
+    appNames = tostring(appNames),
+    appKinds = tostring(appKinds),
+    appStates = tostring(appStates),
+    appDefaultHostNames = tostring(appDefaultHostNames),
+    appHttpsOnlyValues = tostring(appHttpsOnlyValues),
+    appPublicNetworkAccessValues = tostring(appPublicNetworkAccessValues),
+    slotNames = tostring(slotNames),
+    slotKinds = tostring(slotKinds),
+    slotStates = tostring(slotStates),
+    slotDefaultHostNames = tostring(slotDefaultHostNames),
+    systemCreatedAtUTC,
+    systemCreatedAtGMT3,
+    createdBy = tostring(systemData.createdBy),
+    criadoEmTag,
+    criadoEmTagUTC,
+    criadoEmTagGMT3,
+    reservedLinux,
+    zoneRedundant,
+    perSiteScaling,
+    elasticScaleEnabled,
+    asyncScalingEnabled,
+    numberOfWorkers,
+    currentNumberOfWorkers,
+    maximumNumberOfWorkers,
+    maximumElasticWorkerCount,
+    targetWorkerCount,
+    targetWorkerSizeId,
+    workerSize,
+    workerSizeId,
+    currentWorkerSize,
+    currentWorkerSizeId,
+    hostingEnvironmentId,
+    hostingEnvironmentName,
+    kubeEnvironmentId,
+    isSpot,
+    spotExpirationTimeUTC,
+    spotExpirationTimeGMT3,
+    freeOfferExpirationTimeUTC,
+    freeOfferExpirationTimeGMT3,
+    hyperV,
+    isXenon,
+    containerSize,
+    adminSiteName,
+    geoRegion,
+    computeMode,
+    siteMode,
+    tags = tostring(tags),
+    resourceId
+| order by emptyPlanCandidate desc, subscriptionName asc, resourceGroup asc, appServicePlanName asc
