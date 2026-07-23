@@ -1,0 +1,275 @@
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+Resources
+| where type in~ (
+    "microsoft.compute/snapshots",
+    "microsoft.compute/images",
+    "microsoft.compute/galleries",
+    "microsoft.compute/galleries/images",
+    "microsoft.compute/galleries/images/versions"
+)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ "microsoft.resources/subscriptions"
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    resourceType = tostring(type),
+    resourceId = tostring(id),
+    resourceName = tostring(name),
+    resourceLocation = tostring(location)
+| extend
+    tipoArtefato = case(
+        resourceType =~ "microsoft.compute/snapshots", "Snapshot",
+        resourceType =~ "microsoft.compute/images", "Imagem Gerenciada",
+        resourceType =~ "microsoft.compute/galleries", "Azure Compute Gallery",
+        resourceType =~ "microsoft.compute/galleries/images", "Definicao de Imagem",
+        resourceType =~ "microsoft.compute/galleries/images/versions", "Versao de Imagem",
+        resourceType
+    )
+| extend
+    galleryName = case(
+        resourceType =~ "microsoft.compute/galleries", resourceName,
+        resourceType =~ "microsoft.compute/galleries/images", tostring(split(resourceId, "/")[8]),
+        resourceType =~ "microsoft.compute/galleries/images/versions", tostring(split(resourceId, "/")[8]),
+        ""
+    ),
+    imageDefinitionName = case(
+        resourceType =~ "microsoft.compute/galleries/images", resourceName,
+        resourceType =~ "microsoft.compute/galleries/images/versions", tostring(split(resourceId, "/")[10]),
+        ""
+    ),
+    imageVersionName = case(
+        resourceType =~ "microsoft.compute/galleries/images/versions", resourceName,
+        ""
+    )
+| extend
+    createdAtUTC = todatetime(properties.timeCreated),
+    systemCreatedAtUTC = todatetime(systemData.createdAt)
+| extend
+    createdAtGMT3 = createdAtUTC - 3h,
+    systemCreatedAtGMT3 = systemCreatedAtUTC - 3h
+| extend
+    criadoEmTag = coalesce(
+        tostring(tags["Criado em"]),
+        tostring(tags["criado em"]),
+        tostring(tags["CriadoEm"]),
+        tostring(tags["createdOn"]),
+        tostring(tags["CreatedOn"]),
+        tostring(tags["CreatedAt"]),
+        tostring(tags["createdAt"])
+    )
+| extend
+    criadoEmTagUTC = todatetime(criadoEmTag)
+| extend
+    criadoEmTagGMT3 = criadoEmTagUTC - 3h
+| extend
+    idadeDias = datetime_diff("day", now(), createdAtUTC)
+| extend
+    provisioningState = tostring(properties.provisioningState),
+    uniqueName = tostring(properties.uniqueName),
+    description = tostring(properties.description)
+| extend
+    skuName = tostring(sku.name),
+    skuTier = tostring(sku.tier),
+    skuSize = tostring(sku.size),
+    skuFamily = tostring(sku.family),
+    skuCapacity = tostring(sku.capacity)
+| extend
+    osType = coalesce(
+        tostring(properties.osType),
+        tostring(properties.storageProfile.osDisk.osType),
+        tostring(properties.storageProfile.osDiskImage.operatingSystem)
+    ),
+    osState = coalesce(
+        tostring(properties.osState),
+        tostring(properties.storageProfile.osDisk.osState)
+    ),
+    hyperVGeneration = coalesce(
+        tostring(properties.hyperVGeneration),
+        tostring(properties.storageProfile.osDisk.hyperVGeneration)
+    ),
+    architecture = coalesce(
+        tostring(properties.architecture),
+        tostring(properties.storageProfile.osDisk.architecture)
+    )
+| extend
+    diskSizeGB = coalesce(
+        tostring(properties.diskSizeGB),
+        tostring(properties.storageProfile.osDisk.diskSizeGB),
+        tostring(properties.storageProfile.osDiskImage.sizeInGB)
+    ),
+    osDiskSizeGB = coalesce(
+        tostring(properties.storageProfile.osDisk.diskSizeGB),
+        tostring(properties.storageProfile.osDiskImage.sizeInGB)
+    )
+| extend
+    dataDisksCount = coalesce(
+        array_length(properties.storageProfile.dataDisks),
+        array_length(properties.storageProfile.dataDiskImages)
+    ),
+    dataDisks = coalesce(
+        tostring(properties.storageProfile.dataDisks),
+        tostring(properties.storageProfile.dataDiskImages)
+    )
+| extend
+    incrementalSnapshot = tostring(properties.incremental),
+    completionPercent = tostring(properties.completionPercent),
+    copyCompletionError = tostring(properties.copyCompletionError),
+    snapshotAccessState = tostring(properties.diskState),
+    supportsHibernation = tostring(properties.supportsHibernation)
+| extend
+    creationOption = tostring(properties.creationData.createOption),
+    sourceResourceId = coalesce(
+        tostring(properties.creationData.sourceResourceId),
+        tostring(properties.storageProfile.osDisk.managedDisk.id),
+        tostring(properties.storageProfile.osDiskImage.source.id)
+    ),
+    sourceUniqueId = tostring(properties.creationData.sourceUniqueId),
+    sourceUri = tostring(properties.creationData.sourceUri),
+    sourceSnapshotId = tostring(properties.storageProfile.osDisk.snapshot.id),
+    sourceManagedDiskId = tostring(properties.storageProfile.osDisk.managedDisk.id),
+    sourceImageId = tostring(properties.sourceVirtualMachine.id)
+| extend
+    encryptionType = tostring(properties.encryption.type),
+    diskEncryptionSetId = coalesce(
+        tostring(properties.encryption.diskEncryptionSetId),
+        tostring(properties.encryption.diskEncryptionSet.id),
+        tostring(properties.storageProfile.osDisk.managedDisk.diskEncryptionSet.id)
+    ),
+    encryptionSettingsCollectionEnabled = tostring(properties.encryptionSettingsCollection.enabled)
+| extend
+    networkAccessPolicy = tostring(properties.networkAccessPolicy),
+    publicNetworkAccess = tostring(properties.publicNetworkAccess),
+    dataAccessAuthMode = tostring(properties.dataAccessAuthMode),
+    diskAccessId = tostring(properties.diskAccessId)
+| extend
+    galleryIdentifierUniqueName = tostring(properties.identifier.uniqueName),
+    gallerySharingPermission = tostring(properties.sharingProfile.permissions),
+    gallerySharingProfile = tostring(properties.sharingProfile),
+    softDeletePolicy = tostring(properties.softDeletePolicy)
+| extend
+    recommendedVCPUsMin = tostring(properties.recommended.vCPUs.min),
+    recommendedVCPUsMax = tostring(properties.recommended.vCPUs.max),
+    recommendedMemoryMinGB = tostring(properties.recommended.memory.min),
+    recommendedMemoryMaxGB = tostring(properties.recommended.memory.max),
+    disallowedDiskTypes = tostring(properties.disallowed.diskTypes),
+    imageFeatures = tostring(properties.features),
+    purchasePlan = tostring(properties.purchasePlan)
+| extend
+    eula = tostring(properties.eula),
+    privacyStatementUri = tostring(properties.privacyStatementUri),
+    releaseNoteUri = tostring(properties.releaseNoteUri),
+    endOfLifeDateUTC = todatetime(properties.endOfLifeDate)
+| extend
+    endOfLifeDateGMT3 = endOfLifeDateUTC - 3h
+| extend
+    publishingProfile = tostring(properties.publishingProfile),
+    targetRegions = tostring(properties.publishingProfile.targetRegions),
+    targetRegionsCount = array_length(properties.publishingProfile.targetRegions),
+    replicaCount = tostring(properties.publishingProfile.replicaCount),
+    replicationMode = tostring(properties.publishingProfile.replicationMode),
+    storageAccountType = tostring(properties.publishingProfile.storageAccountType),
+    excludeFromLatest = tostring(properties.publishingProfile.excludeFromLatest),
+    publishedDateUTC = todatetime(properties.publishingProfile.publishedDate)
+| extend
+    publishedDateGMT3 = publishedDateUTC - 3h
+| extend
+    artifactStatus = case(
+        resourceType =~ "microsoft.compute/snapshots" and incrementalSnapshot =~ "true", "Snapshot incremental",
+        resourceType =~ "microsoft.compute/snapshots" and incrementalSnapshot =~ "false", "Snapshot completo",
+        resourceType =~ "microsoft.compute/galleries/images/versions" and excludeFromLatest =~ "true", "Versao excluida do latest",
+        resourceType =~ "microsoft.compute/galleries/images/versions" and excludeFromLatest =~ "false", "Versao elegivel para latest",
+        resourceType =~ "microsoft.compute/galleries/images" and isnotempty(tostring(endOfLifeDateUTC)), "Definicao com End of Life informado",
+        resourceType =~ "microsoft.compute/galleries", "Galeria",
+        resourceType =~ "microsoft.compute/images", "Imagem gerenciada",
+        "Nao classificado"
+    )
+| project
+    subscriptionName,
+    subscriptionId,
+    resourceGroup,
+    tipoArtefato,
+    resourceName,
+    galleryName,
+    imageDefinitionName,
+    imageVersionName,
+    resourceType,
+    resourceLocation,
+    provisioningState,
+    artifactStatus,
+    idadeDias,
+    createdAtUTC = format_datetime(createdAtUTC, "yyyy-MM-dd HH:mm:ss"),
+    createdAtGMT3 = format_datetime(createdAtGMT3, "yyyy-MM-dd HH:mm:ss"),
+    systemCreatedAtUTC = format_datetime(systemCreatedAtUTC, "yyyy-MM-dd HH:mm:ss"),
+    systemCreatedAtGMT3 = format_datetime(systemCreatedAtGMT3, "yyyy-MM-dd HH:mm:ss"),
+    createdBy = tostring(systemData.createdBy),
+    criadoEmTag,
+    criadoEmTagGMT3 = format_datetime(criadoEmTagGMT3, "yyyy-MM-dd HH:mm:ss"),
+    skuName,
+    skuTier,
+    skuSize,
+    skuFamily,
+    skuCapacity,
+    osType,
+    osState,
+    hyperVGeneration,
+    architecture,
+    diskSizeGB,
+    osDiskSizeGB,
+    dataDisksCount,
+    dataDisks,
+    incrementalSnapshot,
+    completionPercent,
+    copyCompletionError,
+    snapshotAccessState,
+    supportsHibernation,
+    creationOption,
+    sourceResourceId,
+    sourceUniqueId,
+    sourceUri,
+    sourceSnapshotId,
+    sourceManagedDiskId,
+    sourceImageId,
+    encryptionType,
+    diskEncryptionSetId,
+    encryptionSettingsCollectionEnabled,
+    networkAccessPolicy,
+    publicNetworkAccess,
+    dataAccessAuthMode,
+    diskAccessId,
+    uniqueName,
+    description,
+    galleryIdentifierUniqueName,
+    gallerySharingPermission,
+    gallerySharingProfile,
+    softDeletePolicy,
+    recommendedVCPUsMin,
+    recommendedVCPUsMax,
+    recommendedMemoryMinGB,
+    recommendedMemoryMaxGB,
+    disallowedDiskTypes,
+    imageFeatures,
+    purchasePlan,
+    eula,
+    privacyStatementUri,
+    releaseNoteUri,
+    endOfLifeDateUTC = format_datetime(endOfLifeDateUTC, "yyyy-MM-dd HH:mm:ss"),
+    endOfLifeDateGMT3 = format_datetime(endOfLifeDateGMT3, "yyyy-MM-dd HH:mm:ss"),
+    publishingProfile,
+    targetRegions,
+    targetRegionsCount,
+    replicaCount,
+    replicationMode,
+    storageAccountType,
+    excludeFromLatest,
+    publishedDateUTC = format_datetime(publishedDateUTC, "yyyy-MM-dd HH:mm:ss"),
+    publishedDateGMT3 = format_datetime(publishedDateGMT3, "yyyy-MM-dd HH:mm:ss"),
+    tags = tostring(tags),
+    resourceId
+| order by subscriptionName asc, resourceGroup asc, tipoArtefato asc, galleryName asc, imageDefinitionName asc, imageVersionName asc, resourceName asc
