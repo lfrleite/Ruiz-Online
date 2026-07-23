@@ -1,0 +1,312 @@
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+Resources
+| where type in~ (
+    "microsoft.network/azurefirewalls",
+    "microsoft.network/applicationgateways",
+    "microsoft.network/loadbalancers",
+    "microsoft.network/publicipaddresses",
+    "microsoft.network/natgateways",
+    "microsoft.network/virtualnetworkgateways",
+    "microsoft.network/expressroutecircuits",
+    "microsoft.network/bastionhosts",
+    "microsoft.cdn/profiles",
+    "microsoft.network/frontdoors",
+    "microsoft.network/privateendpoints",
+    "microsoft.network/privatednszones"
+)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ "microsoft.resources/subscriptions"
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    resourceName = name,
+    resourceType = tostring(type),
+    resourceLocation = tostring(location),
+    resourceId = tostring(id)
+| extend
+    tipoRecurso = case(
+        resourceType =~ "microsoft.network/azurefirewalls", "Azure Firewall",
+        resourceType =~ "microsoft.network/applicationgateways", "Application Gateway",
+        resourceType =~ "microsoft.network/loadbalancers", "Load Balancer",
+        resourceType =~ "microsoft.network/publicipaddresses", "Public IP Address",
+        resourceType =~ "microsoft.network/natgateways", "NAT Gateway",
+        resourceType =~ "microsoft.network/virtualnetworkgateways", "Virtual Network Gateway",
+        resourceType =~ "microsoft.network/expressroutecircuits", "ExpressRoute Circuit",
+        resourceType =~ "microsoft.network/bastionhosts", "Azure Bastion",
+        resourceType =~ "microsoft.cdn/profiles", "CDN / Azure Front Door Profile",
+        resourceType =~ "microsoft.network/frontdoors", "Front Door Classic",
+        resourceType =~ "microsoft.network/privateendpoints", "Private Endpoint",
+        resourceType =~ "microsoft.network/privatednszones", "Private DNS Zone",
+        resourceType
+    )
+| extend
+    skuName = coalesce(tostring(sku.name), tostring(properties.sku.name)),
+    skuTier = coalesce(tostring(sku.tier), tostring(properties.sku.tier)),
+    zones = tostring(zones),
+    provisioningState = tostring(properties.provisioningState)
+| extend
+    publicIpAddress = tostring(properties.ipAddress),
+    publicIpAllocationMethod = tostring(properties.publicIPAllocationMethod),
+    publicIpVersion = tostring(properties.publicIPAddressVersion),
+    publicIpIdleTimeoutInMinutes = tostring(properties.idleTimeoutInMinutes),
+    associatedTo = coalesce(
+        tostring(properties.ipConfiguration.id),
+        tostring(properties.natGateway.id),
+        tostring(properties.privateLinkService.id)
+    )
+| extend
+    firewallSkuName = tostring(properties.sku.name),
+    firewallSkuTier = tostring(properties.sku.tier),
+    firewallThreatIntelMode = tostring(properties.threatIntelMode),
+    firewallPolicyId = tostring(properties.firewallPolicy.id),
+    firewallIpConfigurations = tostring(properties.ipConfigurations),
+    firewallManagementIpConfiguration = tostring(properties.managementIpConfiguration),
+    firewallVirtualHub = tostring(properties.virtualHub)
+| extend
+    appGwOperationalState = tostring(properties.operationalState),
+    appGwSkuName = tostring(properties.sku.name),
+    appGwSkuTier = tostring(properties.sku.tier),
+    appGwCapacity = tostring(properties.sku.capacity),
+    appGwAutoscaleMin = tostring(properties.autoscaleConfiguration.minCapacity),
+    appGwAutoscaleMax = tostring(properties.autoscaleConfiguration.maxCapacity),
+    appGwHttp2Enabled = tostring(properties.enableHttp2),
+    appGwSslPolicy = tostring(properties.sslPolicy),
+    appGwFirewallPolicyId = tostring(properties.firewallPolicy.id),
+    appGwWebApplicationFirewallConfiguration = tostring(properties.webApplicationFirewallConfiguration),
+    appGwFrontendIpConfigurations = tostring(properties.frontendIPConfigurations),
+    appGwBackendAddressPools = tostring(properties.backendAddressPools),
+    appGwBackendHttpSettings = tostring(properties.backendHttpSettingsCollection),
+    appGwListeners = tostring(properties.httpListeners)
+| extend
+    lbFrontendIpConfigurations = tostring(properties.frontendIPConfigurations),
+    lbBackendAddressPools = tostring(properties.backendAddressPools),
+    lbRules = tostring(properties.loadBalancingRules),
+    lbInboundNatRules = tostring(properties.inboundNatRules),
+    lbOutboundRules = tostring(properties.outboundRules)
+| extend
+    natGatewayIdleTimeoutInMinutes = tostring(properties.idleTimeoutInMinutes),
+    natGatewayPublicIpAddresses = tostring(properties.publicIpAddresses),
+    natGatewayPublicIpPrefixes = tostring(properties.publicIpPrefixes),
+    natGatewaySubnets = tostring(properties.subnets)
+| extend
+    gatewayType = tostring(properties.gatewayType),
+    vpnType = tostring(properties.vpnType),
+    vpnGatewayGeneration = tostring(properties.vpnGatewayGeneration),
+    activeActive = tostring(properties.activeActive),
+    enableBgp = tostring(properties.enableBgp),
+    gatewaySkuName = tostring(properties.sku.name),
+    gatewaySkuTier = tostring(properties.sku.tier),
+    gatewayIpConfigurations = tostring(properties.ipConfigurations),
+    bgpSettings = tostring(properties.bgpSettings)
+| extend
+    expressRouteProvider = tostring(properties.serviceProviderProperties.serviceProviderName),
+    expressRoutePeeringLocation = tostring(properties.serviceProviderProperties.peeringLocation),
+    expressRouteBandwidthMbps = tostring(properties.serviceProviderProperties.bandwidthInMbps),
+    expressRouteCircuitState = tostring(properties.circuitProvisioningState),
+    expressRouteProviderState = tostring(properties.serviceProviderProvisioningState),
+    expressRoutePeerings = tostring(properties.peerings)
+| extend
+    bastionDnsName = tostring(properties.dnsName),
+    bastionScaleUnits = tostring(properties.scaleUnits),
+    bastionIpConfigurations = tostring(properties.ipConfigurations),
+    bastionEnableTunneling = tostring(properties.enableTunneling),
+    bastionEnableIpConnect = tostring(properties.enableIpConnect),
+    bastionEnableShareableLink = tostring(properties.enableShareableLink),
+    bastionEnableKerberos = tostring(properties.enableKerberos),
+    bastionDisableCopyPaste = tostring(properties.disableCopyPaste)
+| extend
+    cdnResourceState = tostring(properties.resourceState),
+    cdnProvisioningState = tostring(properties.provisioningState)
+| extend
+    frontDoorResourceState = tostring(properties.resourceState),
+    frontDoorBackendPools = tostring(properties.backendPools),
+    frontDoorFrontendEndpoints = tostring(properties.frontendEndpoints),
+    frontDoorRoutingRules = tostring(properties.routingRules)
+| extend
+    privateEndpointSubnetId = tostring(properties.subnet.id),
+    privateEndpointNetworkInterfaces = tostring(properties.networkInterfaces),
+    privateEndpointManualConnections = tostring(properties.manualPrivateLinkServiceConnections),
+    privateEndpointConnections = tostring(properties.privateLinkServiceConnections),
+    privateEndpointCustomDnsConfigs = tostring(properties.customDnsConfigs)
+| extend
+    privateDnsZoneRecordSets = tostring(properties.numberOfRecordSets),
+    privateDnsZoneMaxRecordSets = tostring(properties.maxNumberOfRecordSets),
+    privateDnsZoneMaxVNetLinks = tostring(properties.maxNumberOfVirtualNetworkLinks),
+    privateDnsZoneMaxVNetLinksWithRegistration = tostring(properties.maxNumberOfVirtualNetworkLinksWithRegistration)
+| extend
+    statusProvisionamento = case(
+        provisioningState =~ "Succeeded", "OK",
+        isempty(provisioningState), "Nao informado",
+        strcat("Revisar: ", provisioningState)
+    )
+| extend
+    statusZona = case(
+        zones == "[]" or isempty(zones), "Sem zona informada",
+        "Zone-aware / zonal"
+    )
+| extend
+    statusPublicExposure = case(
+        resourceType =~ "microsoft.network/publicipaddresses" and isnotempty(publicIpAddress), "Exposicao publica: Public IP",
+        resourceType =~ "microsoft.network/applicationgateways" and appGwFrontendIpConfigurations has "publicIPAddresses", "Exposicao publica: Application Gateway",
+        resourceType =~ "microsoft.network/loadbalancers" and lbFrontendIpConfigurations has "publicIPAddresses", "Exposicao publica: Load Balancer",
+        resourceType =~ "microsoft.network/azurefirewalls", "Exposicao controlada: Azure Firewall",
+        resourceType =~ "microsoft.cdn/profiles", "Exposicao publica: CDN / Front Door",
+        resourceType =~ "microsoft.network/frontdoors", "Exposicao publica: Front Door Classic",
+        "Sem evidencia direta de exposicao publica"
+    )
+| extend
+    statusWAF = case(
+        resourceType =~ "microsoft.network/applicationgateways" and appGwSkuTier has "WAF", "OK: SKU WAF",
+        resourceType =~ "microsoft.network/applicationgateways" and isnotempty(appGwFirewallPolicyId), "OK: WAF Policy associada",
+        resourceType =~ "microsoft.network/applicationgateways" and appGwWebApplicationFirewallConfiguration has "Enabled", "OK: WAF habilitado",
+        resourceType =~ "microsoft.network/applicationgateways", "Revisar: WAF nao identificado",
+        "Nao aplicavel"
+    )
+| extend
+    statusFirewallPolicy = case(
+        resourceType =~ "microsoft.network/azurefirewalls" and isnotempty(firewallPolicyId), "OK: Firewall Policy associada",
+        resourceType =~ "microsoft.network/azurefirewalls" and isempty(firewallPolicyId), "Revisar: Firewall Policy nao identificada",
+        "Nao aplicavel"
+    )
+| extend
+    statusThreatIntel = case(
+        resourceType =~ "microsoft.network/azurefirewalls" and firewallThreatIntelMode in~ ("Alert", "Deny"), "OK",
+        resourceType =~ "microsoft.network/azurefirewalls" and firewallThreatIntelMode =~ "Off", "Revisar: Threat Intel desabilitado",
+        resourceType =~ "microsoft.network/azurefirewalls" and isempty(firewallThreatIntelMode), "Revisar: Threat Intel nao identificado",
+        "Nao aplicavel"
+    )
+| extend
+    statusBgp = case(
+        resourceType =~ "microsoft.network/virtualnetworkgateways" and enableBgp =~ "true", "BGP habilitado",
+        resourceType =~ "microsoft.network/virtualnetworkgateways" and enableBgp =~ "false", "BGP desabilitado",
+        resourceType =~ "microsoft.network/virtualnetworkgateways", "BGP nao identificado",
+        "Nao aplicavel"
+    )
+| extend
+    statusPrivateEndpoint = case(
+        resourceType =~ "microsoft.network/privateendpoints" and isnotempty(privateEndpointConnections), "Private Endpoint com conexao",
+        resourceType =~ "microsoft.network/privateendpoints" and isempty(privateEndpointConnections), "Revisar: Private Endpoint sem conexao identificada",
+        "Nao aplicavel"
+    )
+| extend
+    statusBastion = case(
+        resourceType =~ "microsoft.network/bastionhosts" and bastionEnableTunneling =~ "true", "Revisar conforme politica: tunneling habilitado",
+        resourceType =~ "microsoft.network/bastionhosts", "OK/Revisar configuracao do Bastion",
+        "Nao aplicavel"
+    )
+| extend
+    recomendacaoGeral = case(
+        statusProvisionamento startswith "Revisar", "Prioridade: recurso nao esta em estado Succeeded",
+        statusWAF startswith "Revisar", "Prioridade: revisar WAF no Application Gateway",
+        statusFirewallPolicy startswith "Revisar", "Prioridade: associar ou validar Firewall Policy",
+        statusThreatIntel startswith "Revisar", "Prioridade: revisar Threat Intel do Azure Firewall",
+        statusPrivateEndpoint startswith "Revisar", "Revisar Private Endpoint sem conexao identificada",
+        statusPublicExposure startswith "Exposicao publica", "Revisar exposicao publica e controles associados",
+        statusBastion startswith "Revisar", "Revisar configuracao do Azure Bastion",
+        "Sem alerta critico inicial"
+    )
+| project
+    subscriptionName,
+    subscriptionId,
+    resourceGroup,
+    tipoRecurso,
+    resourceName,
+    resourceType,
+    resourceLocation,
+    skuName,
+    skuTier,
+    zones,
+    statusZona,
+    provisioningState,
+    statusProvisionamento,
+    statusPublicExposure,
+    recomendacaoGeral,
+    publicIpAddress,
+    publicIpAllocationMethod,
+    publicIpVersion,
+    publicIpIdleTimeoutInMinutes,
+    associatedTo,
+    firewallSkuName,
+    firewallSkuTier,
+    firewallThreatIntelMode,
+    statusThreatIntel,
+    firewallPolicyId,
+    statusFirewallPolicy,
+    firewallIpConfigurations,
+    firewallManagementIpConfiguration,
+    firewallVirtualHub,
+    appGwOperationalState,
+    appGwSkuName,
+    appGwSkuTier,
+    appGwCapacity,
+    appGwAutoscaleMin,
+    appGwAutoscaleMax,
+    appGwHttp2Enabled,
+    appGwSslPolicy,
+    appGwFirewallPolicyId,
+    statusWAF,
+    appGwWebApplicationFirewallConfiguration,
+    appGwFrontendIpConfigurations,
+    appGwBackendAddressPools,
+    appGwBackendHttpSettings,
+    appGwListeners,
+    lbFrontendIpConfigurations,
+    lbBackendAddressPools,
+    lbRules,
+    lbInboundNatRules,
+    lbOutboundRules,
+    natGatewayIdleTimeoutInMinutes,
+    natGatewayPublicIpAddresses,
+    natGatewayPublicIpPrefixes,
+    natGatewaySubnets,
+    gatewayType,
+    vpnType,
+    vpnGatewayGeneration,
+    activeActive,
+    enableBgp,
+    statusBgp,
+    gatewaySkuName,
+    gatewaySkuTier,
+    gatewayIpConfigurations,
+    bgpSettings,
+    expressRouteProvider,
+    expressRoutePeeringLocation,
+    expressRouteBandwidthMbps,
+    expressRouteCircuitState,
+    expressRouteProviderState,
+    expressRoutePeerings,
+    bastionDnsName,
+    bastionScaleUnits,
+    bastionIpConfigurations,
+    bastionEnableTunneling,
+    bastionEnableIpConnect,
+    bastionEnableShareableLink,
+    bastionEnableKerberos,
+    bastionDisableCopyPaste,
+    statusBastion,
+    cdnResourceState,
+    cdnProvisioningState,
+    frontDoorResourceState,
+    frontDoorBackendPools,
+    frontDoorFrontendEndpoints,
+    frontDoorRoutingRules,
+    privateEndpointSubnetId,
+    privateEndpointNetworkInterfaces,
+    privateEndpointManualConnections,
+    privateEndpointConnections,
+    privateEndpointCustomDnsConfigs,
+    statusPrivateEndpoint,
+    privateDnsZoneRecordSets,
+    privateDnsZoneMaxRecordSets,
+    privateDnsZoneMaxVNetLinks,
+    privateDnsZoneMaxVNetLinksWithRegistration,
+    tags = tostring(tags),
+    resourceId
+| order by subscriptionName asc, tipoRecurso asc, resourceGroup asc, resourceName asc
