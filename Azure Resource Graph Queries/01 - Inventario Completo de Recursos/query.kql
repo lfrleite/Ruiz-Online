@@ -1,27 +1,27 @@
 Resources
+| project
+    subscriptionId,
+    resourceGroup,
+    name,
+    type,
+    location,
+    kind,
+    sku,
+    zones,
+    managedBy,
+    identity,
+    plan,
+    extendedLocation,
+    tags,
+    properties,
+    id
+| join kind=leftouter (
+    ResourceContainers
+    | where type == 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
 | extend
-    NomeRecurso = tostring(name),
-    TipoRecurso = tostring(type),
-    GrupoRecursos = tostring(resourceGroup),
-    Localizacao = tostring(location),
-    Kind = tostring(kind),
-    GerenciadoPor = tostring(managedBy),
-    SkuNome = tostring(sku.name),
-    SkuTier = tostring(sku.tier),
-    SkuFamilia = tostring(sku.family),
-    SkuTamanho = tostring(sku.size),
-    SkuCapacidade = tostring(sku.capacity),
-    ZonasDisponibilidade = tostring(zones),
-    EstadoProvisionamento = tostring(properties.provisioningState),
-    DataCriacaoUTC = tostring(properties.timeCreated),
-    TipoIdentidade = tostring(identity.type),
-    PrincipalIdIdentidade = tostring(identity.principalId),
-    TenantIdIdentidade = tostring(identity.tenantId),
-    PlanoNome = tostring(plan.name),
-    PlanoProduto = tostring(plan.product),
-    PlanoPublicador = tostring(plan.publisher),
-    LocalizacaoEstendidaNome = tostring(extendedLocation.name),
-    LocalizacaoEstendidaTipo = tostring(extendedLocation.type),
     TagAMBIENTE = tostring(tags['AMBIENTE']),
     TagBACKUP = tostring(tags['BACKUP']),
     TagBU = tostring(tags['BU']),
@@ -40,36 +40,26 @@ Resources
     TagSTART = tostring(tags['START']),
     TagSTOP = tostring(tags['STOP']),
     TagWAVE = tostring(tags['WAVE'])
-| join kind=leftouter (
-    ResourceContainers
-    | where type == 'microsoft.resources/subscriptions'
-    | project subscriptionId, NomeSubscription = name
-) on subscriptionId
 | project
     NomeSubscription,
     IdSubscription = subscriptionId,
-    NomeRecurso,
-    TipoRecurso,
-    GrupoRecursos,
-    Localizacao,
-    Kind,
-    GerenciadoPor,
-    SkuNome,
-    SkuTier,
-    SkuFamilia,
-    SkuTamanho,
-    SkuCapacidade,
-    ZonasDisponibilidade,
-    EstadoProvisionamento,
-    DataCriacaoUTC,
-    TipoIdentidade,
-    PrincipalIdIdentidade,
-    TenantIdIdentidade,
-    PlanoNome,
-    PlanoProduto,
-    PlanoPublicador,
-    LocalizacaoEstendidaNome,
-    LocalizacaoEstendidaTipo,
+    NomeRecurso = name,
+    TipoRecurso = type,
+    GrupoRecursos = resourceGroup,
+    Localizacao = location,
+    Kind = kind,
+    SkuNome = tostring(sku.name),
+    SkuTier = tostring(sku.tier),
+    ZonasDisponibilidade = tostring(zones),
+    GerenciadoPor = managedBy,
+    TipoIdentidade = tostring(identity.type),
+    PlanoNome = tostring(plan.name),
+    PlanoProduto = tostring(plan.product),
+    PlanoPublicador = tostring(plan.publisher),
+    LocalizacaoEstendidaNome = tostring(extendedLocation.name),
+    LocalizacaoEstendidaTipo = tostring(extendedLocation.type),
+    EstadoProvisionamento = tostring(properties.provisioningState),
+    DataCriacaoUTC = tostring(properties.timeCreated),
     TagAMBIENTE,
     TagBACKUP,
     TagBU,
@@ -90,5 +80,3 @@ Resources
     TagWAVE,
     ResourceId = id
 | order by NomeSubscription asc, TipoRecurso asc, NomeRecurso asc
-
-// Para filtrar por subscriptions, insira o filtro logo após a linha "Resources".
