@@ -20,7 +20,3 @@ A consulta não possui subscriptions fixas. Para limitar o escopo, adicione a et
 ```
 
 Também é possível selecionar as subscriptions diretamente no escopo do Azure Resource Graph Explorer.
-
-## Observações
-
-Os nomes das tags são avaliados conforme a grafia padronizada em letras maiúsculas. Variações como `bu`, `Bu` ou nomes com espaços serão tratadas como chaves diferentes pelo Azure.
