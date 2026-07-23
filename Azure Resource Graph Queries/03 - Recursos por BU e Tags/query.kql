@@ -1,15 +1,5 @@
 Resources
 | extend
-    NomeRecurso = tostring(name),
-    TipoRecurso = tostring(type),
-    GrupoRecursos = tostring(resourceGroup),
-    Localizacao = tostring(location),
-    Kind = tostring(kind),
-    GerenciadoPor = tostring(managedBy),
-    SkuNome = tostring(sku.name),
-    SkuTier = tostring(sku.tier),
-    EstadoProvisionamento = tostring(properties.provisioningState),
-    DataCriacaoUTC = tostring(properties.timeCreated),
     TagAMBIENTE = tostring(tags['AMBIENTE']),
     TagBACKUP = tostring(tags['BACKUP']),
     TagBU = tostring(tags['BU']),
@@ -33,19 +23,20 @@ Resources
     | where type == 'microsoft.resources/subscriptions'
     | project subscriptionId, NomeSubscription = name
 ) on subscriptionId
+| project-away subscriptionId1
 | project
     NomeSubscription,
     IdSubscription = subscriptionId,
-    NomeRecurso,
-    TipoRecurso,
-    GrupoRecursos,
-    Localizacao,
-    Kind,
-    GerenciadoPor,
-    SkuNome,
-    SkuTier,
-    EstadoProvisionamento,
-    DataCriacaoUTC,
+    NomeRecurso = name,
+    TipoRecurso = type,
+    GrupoRecursos = resourceGroup,
+    Localizacao = location,
+    Kind = kind,
+    GerenciadoPor = managedBy,
+    SkuNome = tostring(sku.name),
+    SkuTier = tostring(sku.tier),
+    EstadoProvisionamento = tostring(properties.provisioningState),
+    DataCriacaoUTC = tostring(properties.timeCreated),
     TagAMBIENTE,
     TagBACKUP,
     TagBU,
@@ -66,5 +57,3 @@ Resources
     TagWAVE,
     ResourceId = id
 | order by NomeSubscription asc, TagBU asc, TipoRecurso asc, NomeRecurso asc
-
-// Para filtrar por subscriptions, insira o filtro logo após a linha "Resources".
