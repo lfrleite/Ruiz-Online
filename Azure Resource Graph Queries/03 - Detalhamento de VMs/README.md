@@ -8,28 +8,6 @@ Relacionar cada recurso Azure às principais tags de negócio, operação, FinOp
 
 - `query.kql`: consulta pronta para uso no Azure Resource Graph Explorer.
 
-## Tags retornadas
-
-- `BU`
-- `CC`
-- `AMBIENTE`
-- `CLIENTE`
-- `CCOWNER`
-- `CAPEX`
-- `DISPONIBILIDADE`
-- `DOMINIO`
-- `FUNCAO`
-- `PRODUTO`
-- `RESERVA`
-- `BACKUP`
-- `START`
-- `SQUAD`
-- `STOP`
-- `WAVE`
-- `SO`
-
-A consulta também mantém a coluna `TodasAsTags` para auditoria de tags adicionais.
-
 ## Filtrar por subscriptions
 
 A consulta não possui subscriptions fixas. Para limitar o escopo, adicione a etapa abaixo imediatamente após `Resources`:
