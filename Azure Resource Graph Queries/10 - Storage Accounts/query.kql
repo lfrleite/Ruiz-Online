@@ -1,0 +1,214 @@
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+Resources
+| where type =~ 'microsoft.storage/storageaccounts'
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    storageAccountName = name,
+    resourceType = tostring(type),
+    resourceId = tostring(id),
+    resourceLocation = tostring(location)
+| extend
+    createdAtUTC = todatetime(systemData.createdAt),
+    lastModifiedAtUTC = todatetime(systemData.lastModifiedAt)
+| extend
+    createdAtGMT3 = datetime_add('hour', -3, createdAtUTC),
+    lastModifiedAtGMT3 = datetime_add('hour', -3, lastModifiedAtUTC)
+| extend
+    createdBy = tostring(systemData.createdBy),
+    lastModifiedBy = tostring(systemData.lastModifiedBy)
+| extend
+    kindStorage = tostring(kind),
+    skuName = tostring(sku.name),
+    skuTier = tostring(sku.tier),
+    accessTier = tostring(properties.accessTier),
+    provisioningState = tostring(properties.provisioningState),
+    primaryLocation = tostring(properties.primaryLocation),
+    statusOfPrimary = tostring(properties.statusOfPrimary),
+    secondaryLocation = tostring(properties.secondaryLocation),
+    statusOfSecondary = tostring(properties.statusOfSecondary)
+| extend
+    supportsHttpsTrafficOnly = tostring(properties.supportsHttpsTrafficOnly),
+    minTlsVersion = tostring(properties.minimumTlsVersion),
+    allowBlobPublicAccess = tostring(properties.allowBlobPublicAccess),
+    allowSharedKeyAccess = tostring(properties.allowSharedKeyAccess),
+    allowCrossTenantReplication = tostring(properties.allowCrossTenantReplication),
+    defaultToOAuthAuthentication = tostring(properties.defaultToOAuthAuthentication),
+    publicNetworkAccess = tostring(properties.publicNetworkAccess)
+| extend
+    networkDefaultAction = tostring(properties.networkAcls.defaultAction),
+    networkBypass = tostring(properties.networkAcls.bypass),
+    ipRules = tostring(properties.networkAcls.ipRules),
+    virtualNetworkRules = tostring(properties.networkAcls.virtualNetworkRules)
+| extend
+    privateEndpointConnectionsCount = array_length(properties.privateEndpointConnections)
+| extend
+    encryptionKeySource = tostring(properties.encryption.keySource),
+    encryptionRequireInfrastructureEncryption = tostring(properties.encryption.requireInfrastructureEncryption),
+    encryptionBlobEnabled = tostring(properties.encryption.services.blob.enabled),
+    encryptionFileEnabled = tostring(properties.encryption.services.file.enabled),
+    encryptionQueueEnabled = tostring(properties.encryption.services.queue.enabled),
+    encryptionTableEnabled = tostring(properties.encryption.services.table.enabled)
+| extend
+    isHnsEnabled = tostring(properties.isHnsEnabled),
+    isNfsV3Enabled = tostring(properties.isNfsV3Enabled),
+    isSftpEnabled = tostring(properties.isSftpEnabled),
+    largeFileSharesState = tostring(properties.largeFileSharesState),
+    dnsEndpointType = tostring(properties.dnsEndpointType),
+    immutableStorageWithVersioning = tostring(properties.immutableStorageWithVersioning.enabled)
+| extend
+    tipoStorage = case(
+        kindStorage =~ 'StorageV2' and isHnsEnabled =~ 'true', 'StorageV2 / ADLS Gen2',
+        kindStorage =~ 'StorageV2', 'StorageV2',
+        kindStorage =~ 'BlobStorage', 'Blob Storage',
+        kindStorage =~ 'FileStorage', 'File Storage',
+        kindStorage =~ 'BlockBlobStorage', 'Block Blob Storage',
+        kindStorage =~ 'Storage', 'Storage V1',
+        isempty(kindStorage), 'Nao identificado',
+        kindStorage
+    )
+| extend
+    redundancia = case(
+        skuName has 'RAGZRS', 'Read Access Geo Zone Redundant Storage',
+        skuName has 'RAGRS', 'Read Access Geo Redundant Storage',
+        skuName has 'GZRS', 'Geo Zone Redundant Storage',
+        skuName has 'GRS', 'Geo Redundant Storage',
+        skuName has 'ZRS', 'Zone Redundant Storage',
+        skuName has 'LRS', 'Local Redundant Storage',
+        isempty(skuName), 'Nao identificado',
+        skuName
+    )
+| extend
+    statusTLS = case(
+        minTlsVersion =~ 'TLS1_2', 'OK',
+        minTlsVersion =~ 'TLS1_3', 'OK',
+        minTlsVersion in~ ('TLS1_0', 'TLS1_1'), 'Revisar: TLS antigo',
+        isempty(minTlsVersion), 'Revisar: TLS nao identificado',
+        'Revisar'
+    ),
+    statusHTTPS = case(
+        supportsHttpsTrafficOnly =~ 'true', 'OK',
+        supportsHttpsTrafficOnly =~ 'false', 'Revisar: HTTPS nao obrigatorio',
+        'Revisar: HTTPS nao identificado'
+    ),
+    statusBlobPublicAccess = case(
+        allowBlobPublicAccess =~ 'false', 'OK',
+        allowBlobPublicAccess =~ 'true', 'Revisar: Blob public access permitido',
+        isempty(allowBlobPublicAccess), 'Nao informado',
+        'Revisar'
+    ),
+    statusSharedKeyAccess = case(
+        allowSharedKeyAccess =~ 'false', 'OK: Shared Key desabilitado',
+        allowSharedKeyAccess =~ 'true', 'Revisar: Shared Key habilitado',
+        isempty(allowSharedKeyAccess), 'Nao informado',
+        'Revisar'
+    ),
+    statusPublicNetworkAccess = case(
+        publicNetworkAccess =~ 'Disabled', 'OK: acesso publico desabilitado',
+        publicNetworkAccess =~ 'Enabled', 'Revisar conforme exposicao',
+        isempty(publicNetworkAccess), 'Nao informado',
+        publicNetworkAccess
+    ),
+    statusNetworkDefaultAction = case(
+        networkDefaultAction =~ 'Deny', 'OK',
+        networkDefaultAction =~ 'Allow', 'Revisar: firewall permite por padrao',
+        isempty(networkDefaultAction), 'Nao informado',
+        'Revisar'
+    ),
+    statusPrivateEndpoint = case(
+        privateEndpointConnectionsCount > 0, 'Private Endpoint configurado',
+        'Sem evidencia de Private Endpoint'
+    ),
+    statusAdvancedProtocols = case(
+        isSftpEnabled =~ 'true' or isNfsV3Enabled =~ 'true', 'Revisar: SFTP/NFS habilitado',
+        isSftpEnabled =~ 'false' and isNfsV3Enabled =~ 'false', 'OK',
+        'Nao informado'
+    ),
+    statusInfrastructureEncryption = case(
+        encryptionRequireInfrastructureEncryption =~ 'true', 'OK: infrastructure encryption habilitada',
+        encryptionRequireInfrastructureEncryption =~ 'false', 'Nao habilitada',
+        isempty(encryptionRequireInfrastructureEncryption), 'Nao informado',
+        encryptionRequireInfrastructureEncryption
+    )
+| extend
+    recomendacaoGeral = case(
+        statusTLS startswith 'Revisar', 'Prioridade: ajustar TLS minimo para TLS1_2',
+        statusHTTPS startswith 'Revisar', 'Prioridade: exigir trafego HTTPS',
+        statusBlobPublicAccess startswith 'Revisar', 'Prioridade: revisar Blob public access',
+        statusSharedKeyAccess startswith 'Revisar', 'Revisar uso de Shared Key e priorizar Microsoft Entra ID quando aplicavel',
+        statusNetworkDefaultAction startswith 'Revisar', 'Revisar firewall: default action Allow',
+        statusPublicNetworkAccess startswith 'Revisar', 'Revisar exposicao publica',
+        statusAdvancedProtocols startswith 'Revisar', 'Revisar SFTP/NFS habilitado',
+        statusPrivateEndpoint == 'Sem evidencia de Private Endpoint', 'Revisar necessidade de acesso privado',
+        'Sem alerta critico inicial'
+    )
+| project
+    subscriptionName,
+    subscriptionId,
+    resourceGroup,
+    storageAccountName,
+    tipoStorage,
+    resourceType,
+    resourceLocation,
+    kindStorage,
+    skuName,
+    skuTier,
+    redundancia,
+    accessTier,
+    provisioningState,
+    primaryLocation,
+    statusOfPrimary,
+    secondaryLocation,
+    statusOfSecondary,
+    supportsHttpsTrafficOnly,
+    statusHTTPS,
+    minTlsVersion,
+    statusTLS,
+    allowBlobPublicAccess,
+    statusBlobPublicAccess,
+    allowSharedKeyAccess,
+    statusSharedKeyAccess,
+    allowCrossTenantReplication,
+    defaultToOAuthAuthentication,
+    publicNetworkAccess,
+    statusPublicNetworkAccess,
+    networkDefaultAction,
+    statusNetworkDefaultAction,
+    networkBypass,
+    ipRules,
+    virtualNetworkRules,
+    privateEndpointConnectionsCount,
+    statusPrivateEndpoint,
+    encryptionKeySource,
+    encryptionRequireInfrastructureEncryption,
+    statusInfrastructureEncryption,
+    encryptionBlobEnabled,
+    encryptionFileEnabled,
+    encryptionQueueEnabled,
+    encryptionTableEnabled,
+    isHnsEnabled,
+    isNfsV3Enabled,
+    isSftpEnabled,
+    statusAdvancedProtocols,
+    largeFileSharesState,
+    dnsEndpointType,
+    immutableStorageWithVersioning,
+    recomendacaoGeral,
+    createdAtUTC,
+    createdAtGMT3,
+    lastModifiedAtUTC,
+    lastModifiedAtGMT3,
+    createdBy,
+    lastModifiedBy,
+    tags = tostring(tags),
+    resourceId
+| order by subscriptionName asc, resourceGroup asc, storageAccountName asc
