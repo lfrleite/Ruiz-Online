@@ -1,0 +1,238 @@
+// Para filtrar por subscriptions, insira apos a linha "RecoveryServicesResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+RecoveryServicesResources
+| where type in~ (
+    'microsoft.recoveryservices/vaults',
+    'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems',
+    'microsoft.recoveryservices/vaults/backuppolicies',
+    'microsoft.dataprotection/backupvaults',
+    'microsoft.dataprotection/backupvaults/backupinstances',
+    'microsoft.dataprotection/backupvaults/backuppolicies'
+)
+| extend
+    resourceId = tostring(id),
+    resourceType = tostring(type),
+    resourceName = tostring(name),
+    resourceLocation = tostring(location),
+    resourceIdLower = tolower(tostring(id))
+| extend
+    vaultName = case(
+        resourceType =~ 'microsoft.recoveryservices/vaults', resourceName,
+        resourceType =~ 'microsoft.dataprotection/backupvaults', resourceName,
+        resourceIdLower has '/microsoft.recoveryservices/vaults/', tostring(split(split(resourceIdLower, '/microsoft.recoveryservices/vaults/')[1], '/')[0]),
+        resourceIdLower has '/microsoft.dataprotection/backupvaults/', tostring(split(split(resourceIdLower, '/microsoft.dataprotection/backupvaults/')[1], '/')[0]),
+        ''
+    )
+| extend
+    tipoRecurso = case(
+        resourceType =~ 'microsoft.recoveryservices/vaults', 'Recovery Services Vault',
+        resourceType =~ 'microsoft.dataprotection/backupvaults', 'Backup Vault',
+        resourceType =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems', 'Protected Item - Recovery Services',
+        resourceType =~ 'microsoft.dataprotection/backupvaults/backupinstances', 'Backup Instance - Data Protection',
+        resourceType =~ 'microsoft.recoveryservices/vaults/backuppolicies', 'Backup Policy - Recovery Services',
+        resourceType =~ 'microsoft.dataprotection/backupvaults/backuppolicies', 'Backup Policy - Data Protection',
+        resourceType
+    )
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    createdAtUTC = todatetime(systemData.createdAt),
+    lastModifiedAtUTC = todatetime(systemData.lastModifiedAt)
+| extend
+    createdAtGMT3 = datetime_add('hour', -3, createdAtUTC),
+    lastModifiedAtGMT3 = datetime_add('hour', -3, lastModifiedAtUTC)
+| extend
+    createdBy = tostring(systemData.createdBy),
+    lastModifiedBy = tostring(systemData.lastModifiedBy)
+| extend
+    skuName = tostring(sku.name),
+    skuTier = tostring(sku.tier),
+    provisioningState = tostring(properties.provisioningState)
+| extend
+    backupManagementType = coalesce(
+        tostring(properties.backupManagementType),
+        tostring(properties.dataSourceInfo.datasourceType),
+        tostring(properties.dataSourceSetInfo.datasourceType)
+    ),
+    workloadType = coalesce(
+        tostring(properties.workloadType),
+        tostring(properties.dataSourceInfo.datasourceType),
+        tostring(properties.dataSourceType)
+    ),
+    dataSourceType = coalesce(
+        tostring(properties.dataSourceType),
+        tostring(properties.dataSourceInfo.datasourceType),
+        tostring(properties.backupManagementType)
+    )
+| extend
+    protectionState = coalesce(
+        tostring(properties.currentProtectionState),
+        tostring(properties.protectionState),
+        tostring(properties.protectionStatus.status),
+        tostring(properties.status)
+    ),
+    protectionStatus = coalesce(
+        tostring(properties.protectionStatus.status),
+        tostring(properties.status)
+    ),
+    healthStatus = tostring(properties.healthStatus)
+| extend
+    sourceResourceId = coalesce(
+        tostring(properties.sourceResourceId),
+        tostring(properties.dataSourceInfo.resourceID),
+        tostring(properties.dataSourceInfo.resourceId),
+        tostring(properties.dataSourceInfo.resourceUri)
+    ),
+    sourceResourceType = tostring(properties.dataSourceInfo.resourceType),
+    sourceResourceLocation = tostring(properties.dataSourceInfo.resourceLocation)
+| extend
+    friendlyName = coalesce(
+        tostring(properties.friendlyName),
+        tostring(properties.dataSourceInfo.resourceName),
+        tostring(properties.entityFriendlyName)
+    ),
+    policyId = coalesce(
+        tostring(properties.policyId),
+        tostring(properties.policyInfo.policyId),
+        tostring(properties.backupPolicyId)
+    ),
+    policyName = coalesce(
+        tostring(properties.policyName),
+        tostring(properties.policyInfo.name)
+    )
+| extend
+    lastBackupStatus = coalesce(
+        tostring(properties.lastBackupStatus),
+        tostring(properties.lastBackupResult),
+        tostring(properties.lastRecoveryPointStatus)
+    ),
+    lastBackupTimeRaw = coalesce(
+        tostring(properties.lastBackupTime),
+        tostring(properties.lastRecoveryPoint),
+        tostring(properties.latestRecoveryPoint)
+    )
+| extend
+    lastBackupTimeUTC = todatetime(lastBackupTimeRaw)
+| extend
+    lastBackupTimeGMT3 = datetime_add('hour', -3, lastBackupTimeUTC)
+| extend
+    latestRecoveryPointUTC = todatetime(coalesce(
+        tostring(properties.latestRecoveryPoint),
+        tostring(properties.lastRecoveryPoint)
+    )),
+    oldestRecoveryPointUTC = todatetime(properties.oldestRecoveryPoint)
+| extend
+    softDeleteState = coalesce(
+        tostring(properties.securitySettings.softDeleteSettings.softDeleteState),
+        tostring(properties.softDeleteFeatureState),
+        tostring(properties.softDeleteState)
+    ),
+    immutabilityState = coalesce(
+        tostring(properties.securitySettings.immutabilitySettings.state),
+        tostring(properties.immutabilitySettings.state)
+    ),
+    encryptionState = coalesce(
+        tostring(properties.encryption.state),
+        tostring(properties.encryptionProperty.encryptionAtRestType)
+    ),
+    infrastructureEncryption = tostring(properties.encryption.infrastructureEncryption)
+| extend
+    policySchedule = coalesce(
+        tostring(properties.schedulePolicy),
+        tostring(properties.policyRules)
+    ),
+    policyRetention = coalesce(
+        tostring(properties.retentionPolicy),
+        tostring(properties.retentionRules)
+    ),
+    policyDatasourceTypes = tostring(properties.datasourceTypes)
+| extend
+    statusProtecao = case(
+        protectionState in~ ('Protected', 'ProtectionConfigured', 'ProtectionEnabled', 'ConfiguredProtection'), 'OK',
+        protectionState in~ ('SoftDeleted', 'ProtectionStopped', 'Stopped', 'ProtectionError', 'ProtectionPaused'), strcat('Revisar: ', protectionState),
+        isempty(protectionState), 'Nao informado',
+        strcat('Revisar: ', protectionState)
+    ),
+    statusUltimoBackup = case(
+        lastBackupStatus in~ ('Completed', 'Succeeded', 'Success', 'Healthy'), 'OK',
+        lastBackupStatus in~ ('Failed', 'Unhealthy', 'Warning', 'CompletedWithWarnings'), strcat('Revisar: ', lastBackupStatus),
+        isempty(lastBackupStatus), 'Nao informado',
+        strcat('Revisar: ', lastBackupStatus)
+    ),
+    statusSoftDelete = case(
+        softDeleteState in~ ('Enabled', 'AlwaysON', 'On'), 'OK',
+        softDeleteState in~ ('Disabled', 'Off'), 'Revisar: Soft Delete desabilitado',
+        isempty(softDeleteState), 'Nao informado',
+        softDeleteState
+    ),
+    statusImutabilidade = case(
+        immutabilityState in~ ('Locked', 'Unlocked', 'Enabled'), immutabilityState,
+        isempty(immutabilityState), 'Nao informado',
+        immutabilityState
+    )
+| extend
+    recomendacaoGeral = case(
+        statusProtecao startswith 'Revisar', 'Prioridade: validar estado de protecao',
+        statusUltimoBackup startswith 'Revisar', 'Prioridade: validar ultima execucao de backup',
+        statusSoftDelete startswith 'Revisar', 'Prioridade: habilitar ou revisar Soft Delete',
+        isempty(policyId) and tipoRecurso has 'Protected', 'Revisar: item protegido sem policyId identificado',
+        'Sem alerta critico inicial'
+    )
+| project
+    subscriptionName,
+    subscriptionId,
+    resourceGroup,
+    vaultName,
+    tipoRecurso,
+    resourceName,
+    resourceType,
+    resourceLocation,
+    provisioningState,
+    skuName,
+    skuTier,
+    backupManagementType,
+    workloadType,
+    dataSourceType,
+    friendlyName,
+    sourceResourceId,
+    sourceResourceType,
+    sourceResourceLocation,
+    protectionState,
+    protectionStatus,
+    statusProtecao,
+    healthStatus,
+    policyId,
+    policyName,
+    policyDatasourceTypes,
+    policySchedule,
+    policyRetention,
+    lastBackupStatus,
+    statusUltimoBackup,
+    lastBackupTimeUTC,
+    lastBackupTimeGMT3,
+    latestRecoveryPointUTC,
+    oldestRecoveryPointUTC,
+    softDeleteState,
+    statusSoftDelete,
+    immutabilityState,
+    statusImutabilidade,
+    encryptionState,
+    infrastructureEncryption,
+    recomendacaoGeral,
+    createdAtUTC,
+    createdAtGMT3,
+    lastModifiedAtUTC,
+    lastModifiedAtGMT3,
+    createdBy,
+    lastModifiedBy,
+    tags = tostring(tags),
+    resourceId
+| order by subscriptionName asc, vaultName asc, tipoRecurso asc, resourceGroup asc, resourceName asc
