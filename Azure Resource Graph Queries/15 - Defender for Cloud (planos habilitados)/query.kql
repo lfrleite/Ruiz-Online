@@ -1,0 +1,114 @@
+// Para filtrar por subscriptions, insira após a linha "SecurityResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+SecurityResources
+| where type =~ "microsoft.security/pricings"
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ "microsoft.resources/subscriptions"
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    planName = tostring(name),
+    resourceType = tostring(type),
+    resourceId = tostring(id)
+| extend
+    pricingTier = tostring(properties.pricingTier),
+    subPlan = tostring(properties.subPlan),
+    freeTrialRemainingTime = tostring(properties.freeTrialRemainingTime),
+    extensions = tostring(properties.extensions),
+    deprecated = tostring(properties.deprecated),
+    replacedBy = tostring(properties.replacedBy),
+    enablementTime = tostring(properties.enablementTime)
+| extend
+    planoDefender = case(
+        planName =~ "VirtualMachines", "Defender for Servers",
+        planName =~ "SqlServers", "Defender for Azure SQL Databases",
+        planName =~ "SqlServerVirtualMachines", "Defender for SQL Servers on Machines",
+        planName =~ "AppServices", "Defender for App Service",
+        planName =~ "StorageAccounts", "Defender for Storage",
+        planName =~ "KubernetesService", "Defender for Containers / AKS",
+        planName =~ "ContainerRegistry", "Defender for Container Registries",
+        planName =~ "KeyVaults", "Defender for Key Vault",
+        planName =~ "Dns", "Defender for DNS",
+        planName =~ "Arm", "Defender for Resource Manager",
+        planName =~ "OpenSourceRelationalDatabases", "Defender for Open-source Relational Databases",
+        planName =~ "CosmosDbs", "Defender for Azure Cosmos DB",
+        planName =~ "CloudPosture", "Defender CSPM",
+        planName =~ "Containers", "Defender for Containers",
+        planName =~ "Api", "Defender for APIs",
+        planName =~ "AI", "Defender for AI",
+        planName
+    )
+| extend
+    statusPlano = case(
+        pricingTier =~ "Standard", "Habilitado",
+        pricingTier =~ "Free", "Somente Free Tier",
+        isempty(pricingTier), "Nao identificado",
+        pricingTier
+    )
+| extend
+    statusSubPlan = case(
+        isempty(subPlan), "Sem subPlan informado",
+        subPlan
+    )
+| extend
+    statusTrial = case(
+        isempty(freeTrialRemainingTime), "Sem informacao de trial",
+        freeTrialRemainingTime == "PT0S", "Trial expirado ou nao aplicavel",
+        "Trial com tempo restante"
+    )
+| extend
+    statusExtensoes = case(
+        isempty(extensions), "Sem extensoes informadas",
+        extensions == "[]", "Sem extensoes habilitadas",
+        "Extensoes informadas"
+    )
+| extend
+    statusDeprecated = case(
+        deprecated =~ "true", "Revisar: plano marcado como deprecated",
+        deprecated =~ "false", "OK",
+        isempty(deprecated), "Nao informado",
+        deprecated
+    )
+| extend
+    recomendacaoGeral = case(
+        pricingTier =~ "Free", "Prioridade: avaliar habilitacao do plano Standard conforme criticidade",
+        isempty(pricingTier), "Prioridade: validar status do plano",
+        deprecated =~ "true", "Prioridade: revisar plano deprecated e substituto",
+        planName =~ "VirtualMachines" and pricingTier !~ "Standard", "Revisar Defender for Servers",
+        planName =~ "StorageAccounts" and pricingTier !~ "Standard", "Revisar Defender for Storage",
+        planName =~ "KeyVaults" and pricingTier !~ "Standard", "Revisar Defender for Key Vault",
+        planName =~ "AppServices" and pricingTier !~ "Standard", "Revisar Defender for App Service",
+        planName =~ "SqlServers" and pricingTier !~ "Standard", "Revisar Defender for SQL",
+        planName =~ "SqlServerVirtualMachines" and pricingTier !~ "Standard", "Revisar Defender for SQL on Machines",
+        planName =~ "KubernetesService" and pricingTier !~ "Standard", "Revisar Defender for Containers / AKS",
+        planName =~ "ContainerRegistry" and pricingTier !~ "Standard", "Revisar cobertura de container registry",
+        planName =~ "CloudPosture" and pricingTier !~ "Standard", "Revisar Defender CSPM",
+        "Sem alerta critico inicial"
+    )
+| project
+    subscriptionName,
+    subscriptionId,
+    planoDefender,
+    planName,
+    pricingTier,
+    statusPlano,
+    subPlan,
+    statusSubPlan,
+    freeTrialRemainingTime,
+    statusTrial,
+    extensions,
+    statusExtensoes,
+    deprecated,
+    statusDeprecated,
+    replacedBy,
+    enablementTime,
+    recomendacaoGeral,
+    resourceType,
+    resourceId
+| order by subscriptionName asc, planoDefender asc, planName asc
