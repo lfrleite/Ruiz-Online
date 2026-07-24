@@ -1,0 +1,297 @@
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+Resources
+| where type in~ (
+    "microsoft.operationalinsights/workspaces",
+    "microsoft.operationalinsights/workspaces/tables",
+    "microsoft.insights/components",
+    "microsoft.insights/datacollectionrules",
+    "microsoft.insights/actiongroups"
+)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ "microsoft.resources/subscriptions"
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    resourceName = name,
+    resourceType = tostring(type),
+    resourceLocation = tostring(location),
+    resourceId = tostring(id),
+    resourceIdLower = tolower(tostring(id))
+| extend
+    tipoRecurso = case(
+        resourceType =~ "microsoft.operationalinsights/workspaces", "Log Analytics Workspace",
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables", "Log Analytics Table",
+        resourceType =~ "microsoft.insights/components", "Application Insights",
+        resourceType =~ "microsoft.insights/datacollectionrules", "Data Collection Rule",
+        resourceType =~ "microsoft.insights/actiongroups", "Action Group",
+        resourceType
+    )
+| extend
+    workspaceName = case(
+        resourceType =~ "microsoft.operationalinsights/workspaces", resourceName,
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables" and resourceIdLower has "/microsoft.operationalinsights/workspaces/", tostring(split(split(resourceIdLower, "/microsoft.operationalinsights/workspaces/")[1], "/")[0]),
+        ""
+    ),
+    tableName = case(
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables", resourceName,
+        ""
+    )
+| extend
+    createdAtUTC = todatetime(systemData.createdAt),
+    lastModifiedAtUTC = todatetime(systemData.lastModifiedAt)
+| extend
+    createdAtGMT3 = datetime_add("hour", -3, createdAtUTC),
+    lastModifiedAtGMT3 = datetime_add("hour", -3, lastModifiedAtUTC)
+| extend
+    createdBy = tostring(systemData.createdBy),
+    lastModifiedBy = tostring(systemData.lastModifiedBy)
+| extend
+    skuName = tostring(sku.name),
+    skuTier = tostring(sku.tier),
+    provisioningState = tostring(properties.provisioningState)
+| extend
+    retentionInDays = coalesce(
+        tostring(properties.retentionInDays),
+        tostring(properties.retentionInDaysAsDefault)
+    ),
+    totalRetentionInDays = tostring(properties.totalRetentionInDays),
+    tablePlan = tostring(properties.plan),
+    tableSchema = tostring(properties.schema),
+    tableProvisioningState = tostring(properties.provisioningState)
+| extend
+    dailyQuotaGb = tostring(properties.workspaceCapping.dailyQuotaGb),
+    workspaceSkuName = tostring(properties.sku.name),
+    workspaceSkuCapacityReservationLevel = tostring(properties.sku.capacityReservationLevel),
+    workspaceCustomerId = tostring(properties.customerId),
+    workspaceFeatures = tostring(properties.features),
+    workspaceCreatedDate = tostring(properties.createdDate),
+    workspaceModifiedDate = tostring(properties.modifiedDate)
+| extend
+    publicNetworkAccessForIngestion = coalesce(
+        tostring(properties.publicNetworkAccessForIngestion),
+        tostring(properties.PublicNetworkAccessForIngestion)
+    ),
+    publicNetworkAccessForQuery = coalesce(
+        tostring(properties.publicNetworkAccessForQuery),
+        tostring(properties.PublicNetworkAccessForQuery)
+    ),
+    forceCmkForQuery = tostring(properties.forceCmkForQuery),
+    workspaceCapping = tostring(properties.workspaceCapping)
+| extend
+    applicationType = coalesce(
+        tostring(properties.Application_Type),
+        tostring(properties.applicationType)
+    ),
+    appInsightsKind = tostring(kind),
+    ingestionMode = coalesce(
+        tostring(properties.IngestionMode),
+        tostring(properties.ingestionMode)
+    ),
+    workspaceResourceId = coalesce(
+        tostring(properties.WorkspaceResourceId),
+        tostring(properties.workspaceResourceId)
+    ),
+    appId = tostring(properties.AppId),
+    disableLocalAuth = tostring(properties.DisableLocalAuth),
+    appInsightsRequestSource = tostring(properties.Request_Source),
+    appInsightsRetentionInDays = tostring(properties.RetentionInDays)
+| extend
+    dcrKind = tostring(kind),
+    dcrDescription = tostring(properties.description),
+    dcrDataSources = tostring(properties.dataSources),
+    dcrDestinations = tostring(properties.destinations),
+    dcrDataFlows = tostring(properties.dataFlows),
+    dcrStreamDeclarations = tostring(properties.streamDeclarations),
+    dcrImmutableId = tostring(properties.immutableId)
+| extend
+    actionGroupEnabled = tostring(properties.enabled),
+    actionGroupShortName = tostring(properties.groupShortName),
+    emailReceivers = tostring(properties.emailReceivers),
+    smsReceivers = tostring(properties.smsReceivers),
+    webhookReceivers = tostring(properties.webhookReceivers),
+    azureFunctionReceivers = tostring(properties.azureFunctionReceivers),
+    logicAppReceivers = tostring(properties.logicAppReceivers),
+    armRoleReceivers = tostring(properties.armRoleReceivers),
+    automationRunbookReceivers = tostring(properties.automationRunbookReceivers),
+    eventHubReceivers = tostring(properties.eventHubReceivers),
+    itsmReceivers = tostring(properties.itsmReceivers),
+    voiceReceivers = tostring(properties.voiceReceivers)
+| extend
+    statusRetencao = case(
+        resourceType =~ "microsoft.operationalinsights/workspaces" and isempty(retentionInDays), "Revisar: retencao nao identificada",
+        resourceType =~ "microsoft.operationalinsights/workspaces" and toint(retentionInDays) < 30, "Revisar: retencao menor que 30 dias",
+        resourceType =~ "microsoft.operationalinsights/workspaces" and toint(retentionInDays) >= 30, "OK",
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables" and isempty(retentionInDays), "Nao informado",
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables" and toint(retentionInDays) < 30, "Revisar: retencao da tabela menor que 30 dias",
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables" and toint(retentionInDays) >= 30, "OK",
+        "Nao aplicavel"
+    )
+| extend
+    statusDailyQuota = case(
+        resourceType =~ "microsoft.operationalinsights/workspaces" and isempty(dailyQuotaGb), "Nao informado",
+        resourceType =~ "microsoft.operationalinsights/workspaces" and dailyQuotaGb in~ ("-1", "0"), "Revisar conforme politica: quota nao definida ou ilimitada",
+        resourceType =~ "microsoft.operationalinsights/workspaces", "Quota configurada",
+        "Nao aplicavel"
+    )
+| extend
+    statusPublicNetworkIngestion = case(
+        publicNetworkAccessForIngestion =~ "Disabled", "OK: ingestion publica desabilitada",
+        publicNetworkAccessForIngestion =~ "Enabled", "Revisar: ingestion publica habilitada",
+        isempty(publicNetworkAccessForIngestion), "Nao informado",
+        publicNetworkAccessForIngestion
+    ),
+    statusPublicNetworkQuery = case(
+        publicNetworkAccessForQuery =~ "Disabled", "OK: query publica desabilitada",
+        publicNetworkAccessForQuery =~ "Enabled", "Revisar: query publica habilitada",
+        isempty(publicNetworkAccessForQuery), "Nao informado",
+        publicNetworkAccessForQuery
+    )
+| extend
+    statusTablePlan = case(
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables" and tablePlan =~ "Analytics", "Analytics",
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables" and tablePlan =~ "Basic", "Basic: validar uso/custo/limitações",
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables" and tablePlan =~ "Auxiliary", "Auxiliary: validar cenário",
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables" and isempty(tablePlan), "Nao informado",
+        resourceType =~ "microsoft.operationalinsights/workspaces/tables", tablePlan,
+        "Nao aplicavel"
+    )
+| extend
+    statusAppInsightsWorkspace = case(
+        resourceType =~ "microsoft.insights/components" and isnotempty(workspaceResourceId), "Workspace-based",
+        resourceType =~ "microsoft.insights/components" and isempty(workspaceResourceId), "Revisar: sem workspace associado",
+        "Nao aplicavel"
+    )
+| extend
+    statusLocalAuth = case(
+        resourceType =~ "microsoft.insights/components" and disableLocalAuth =~ "true", "OK: local auth desabilitado",
+        resourceType =~ "microsoft.insights/components" and disableLocalAuth =~ "false", "Revisar: local auth habilitado",
+        resourceType =~ "microsoft.insights/components" and isempty(disableLocalAuth), "Nao informado",
+        "Nao aplicavel"
+    )
+| extend
+    statusDCR = case(
+        resourceType =~ "microsoft.insights/datacollectionrules" and isnotempty(dcrDestinations) and isnotempty(dcrDataFlows), "OK: DCR com destinos e data flows",
+        resourceType =~ "microsoft.insights/datacollectionrules" and isempty(dcrDestinations), "Revisar: DCR sem destinations identificados",
+        resourceType =~ "microsoft.insights/datacollectionrules" and isempty(dcrDataFlows), "Revisar: DCR sem data flows identificados",
+        resourceType =~ "microsoft.insights/datacollectionrules", "Revisar DCR",
+        "Nao aplicavel"
+    )
+| extend
+    statusActionGroup = case(
+        resourceType =~ "microsoft.insights/actiongroups" and actionGroupEnabled =~ "true", "Habilitado",
+        resourceType =~ "microsoft.insights/actiongroups" and actionGroupEnabled =~ "false", "Revisar: Action Group desabilitado",
+        resourceType =~ "microsoft.insights/actiongroups" and isempty(actionGroupEnabled), "Nao informado",
+        "Nao aplicavel"
+    )
+| extend
+    statusActionGroupReceivers = case(
+        resourceType =~ "microsoft.insights/actiongroups"
+            and emailReceivers == "[]"
+            and smsReceivers == "[]"
+            and webhookReceivers == "[]"
+            and azureFunctionReceivers == "[]"
+            and logicAppReceivers == "[]"
+            and armRoleReceivers == "[]"
+            and automationRunbookReceivers == "[]"
+            and eventHubReceivers == "[]"
+            and itsmReceivers == "[]"
+            and voiceReceivers == "[]",
+            "Revisar: sem receivers identificados",
+        resourceType =~ "microsoft.insights/actiongroups", "Receivers configurados ou nao totalmente avaliados",
+        "Nao aplicavel"
+    )
+| extend
+    recomendacaoGeral = case(
+        statusRetencao startswith "Revisar", "Prioridade: revisar retencao",
+        statusDailyQuota startswith "Revisar", "Revisar daily quota conforme politica de custo",
+        statusPublicNetworkIngestion startswith "Revisar", "Prioridade: revisar acesso publico para ingestion",
+        statusPublicNetworkQuery startswith "Revisar", "Prioridade: revisar acesso publico para query",
+        statusAppInsightsWorkspace startswith "Revisar", "Prioridade: migrar/validar Application Insights workspace-based",
+        statusLocalAuth startswith "Revisar", "Revisar local auth do Application Insights",
+        statusDCR startswith "Revisar", "Revisar configuracao da Data Collection Rule",
+        statusActionGroup startswith "Revisar", "Revisar Action Group desabilitado",
+        statusActionGroupReceivers startswith "Revisar", "Revisar Action Group sem receivers",
+        "Sem alerta critico inicial"
+    )
+| project
+    subscriptionName,
+    subscriptionId,
+    resourceGroup,
+    tipoRecurso,
+    resourceName,
+    workspaceName,
+    tableName,
+    resourceType,
+    resourceLocation,
+    provisioningState,
+    skuName,
+    skuTier,
+    workspaceSkuName,
+    workspaceSkuCapacityReservationLevel,
+    retentionInDays,
+    totalRetentionInDays,
+    statusRetencao,
+    tablePlan,
+    statusTablePlan,
+    tableProvisioningState,
+    dailyQuotaGb,
+    statusDailyQuota,
+    publicNetworkAccessForIngestion,
+    statusPublicNetworkIngestion,
+    publicNetworkAccessForQuery,
+    statusPublicNetworkQuery,
+    forceCmkForQuery,
+    workspaceCustomerId,
+    workspaceCreatedDate,
+    workspaceModifiedDate,
+    workspaceCapping,
+    workspaceFeatures,
+    applicationType,
+    appInsightsKind,
+    ingestionMode,
+    workspaceResourceId,
+    statusAppInsightsWorkspace,
+    appId,
+    disableLocalAuth,
+    statusLocalAuth,
+    appInsightsRequestSource,
+    appInsightsRetentionInDays,
+    dcrKind,
+    dcrDescription,
+    dcrImmutableId,
+    dcrDataSources,
+    dcrDestinations,
+    dcrDataFlows,
+    dcrStreamDeclarations,
+    statusDCR,
+    actionGroupEnabled,
+    statusActionGroup,
+    actionGroupShortName,
+    emailReceivers,
+    smsReceivers,
+    webhookReceivers,
+    azureFunctionReceivers,
+    logicAppReceivers,
+    armRoleReceivers,
+    automationRunbookReceivers,
+    eventHubReceivers,
+    itsmReceivers,
+    voiceReceivers,
+    statusActionGroupReceivers,
+    recomendacaoGeral,
+    createdAtUTC,
+    createdAtGMT3,
+    lastModifiedAtUTC,
+    lastModifiedAtGMT3,
+    createdBy,
+    lastModifiedBy,
+    tags = tostring(tags),
+    resourceId
+| order by subscriptionName asc, tipoRecurso asc, resourceGroup asc, resourceName asc
