@@ -1,0 +1,34 @@
+AdvisorResources
+| where type =~ 'microsoft.advisor/recommendations'
+| extend
+    IdRecomendacao = tostring(name),
+    Categoria = tostring(properties.category),
+    Impacto = tostring(properties.impact),
+    RecursoImpactadoId = tostring(properties.resourceMetadata.resourceId),
+    CampoImpactado = tostring(properties.impactedField),
+    ValorImpactado = tostring(properties.impactedValue),
+    Problema = tostring(properties.shortDescription.problem),
+    Solucao = tostring(properties.shortDescription.solution),
+    UltimaAtualizacaoUTC = todatetime(properties.lastUpdated),
+    DetalhesAdicionais = tostring(properties.extendedProperties)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    Categoria,
+    Impacto,
+    Problema,
+    Solucao,
+    RecursoImpactadoId,
+    CampoImpactado,
+    ValorImpactado,
+    UltimaAtualizacaoUTC,
+    DetalhesAdicionais,
+    IdRecomendacao,
+    id
+| order by NomeSubscription asc, Categoria asc, Impacto desc, Problema asc
