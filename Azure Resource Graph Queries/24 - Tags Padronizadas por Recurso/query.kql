@@ -1,0 +1,74 @@
+Resources
+| extend
+    CC = tostring(tags['CC']),
+    AMBIENTE = tostring(tags['AMBIENTE']),
+    CLIENTE = tostring(tags['CLIENTE']),
+    CCOWNER = tostring(tags['CCOWNER']),
+    CAPEX = tostring(tags['CAPEX']),
+    DISPONIBILIDADE = tostring(tags['DISPONIBILIDADE']),
+    BU = tostring(tags['BU']),
+    DOMINIO = tostring(tags['DOMINIO']),
+    ENDOFLIFE = tostring(tags['ENDOFLIFE']),
+    FUNCAO = tostring(tags['FUNCAO']),
+    PRODUTO = tostring(tags['PRODUTO']),
+    RESERVA = tostring(tags['RESERVA']),
+    BACKUP = tostring(tags['BACKUP']),
+    START = tostring(tags['START']),
+    SQUAD = tostring(tags['SQUAD']),
+    STOP = tostring(tags['STOP']),
+    WAVE = tostring(tags['WAVE']),
+    SO = tostring(tags['SO'])
+| extend
+    QuantidadeTagsPadraoPreenchidas =
+        toint(isnotempty(CC)) +
+        toint(isnotempty(AMBIENTE)) +
+        toint(isnotempty(CLIENTE)) +
+        toint(isnotempty(CCOWNER)) +
+        toint(isnotempty(CAPEX)) +
+        toint(isnotempty(DISPONIBILIDADE)) +
+        toint(isnotempty(BU)) +
+        toint(isnotempty(DOMINIO)) +
+        toint(isnotempty(ENDOFLIFE)) +
+        toint(isnotempty(FUNCAO)) +
+        toint(isnotempty(PRODUTO)) +
+        toint(isnotempty(RESERVA)) +
+        toint(isnotempty(BACKUP)) +
+        toint(isnotempty(START)) +
+        toint(isnotempty(SQUAD)) +
+        toint(isnotempty(STOP)) +
+        toint(isnotempty(WAVE)) +
+        toint(isnotempty(SO))
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeRecurso = name,
+    TipoRecurso = type,
+    Localizacao = location,
+    CC,
+    AMBIENTE,
+    CLIENTE,
+    CCOWNER,
+    CAPEX,
+    DISPONIBILIDADE,
+    BU,
+    DOMINIO,
+    ENDOFLIFE,
+    FUNCAO,
+    PRODUTO,
+    RESERVA,
+    BACKUP,
+    START,
+    SQUAD,
+    STOP,
+    WAVE,
+    SO,
+    QuantidadeTagsPadraoPreenchidas,
+    ResourceId = id
+| order by NomeSubscription asc, resourceGroup asc, NomeRecurso asc
