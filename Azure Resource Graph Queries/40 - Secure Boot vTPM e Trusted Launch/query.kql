@@ -1,0 +1,52 @@
+Resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| extend
+    TipoSeguranca = tostring(properties.securityProfile.securityType),
+    SecureBootHabilitado = tostring(properties.securityProfile.uefiSettings.secureBootEnabled),
+    vTPMHabilitado = tostring(properties.securityProfile.uefiSettings.vTpmEnabled),
+    SistemaOperacional = tostring(properties.storageProfile.osDisk.osType),
+    GeracaoHyperV = tostring(properties.storageProfile.osDisk.hyperVGeneration),
+    PublisherImagem = tostring(properties.storageProfile.imageReference.publisher),
+    OfertaImagem = tostring(properties.storageProfile.imageReference.offer),
+    SKUImagem = tostring(properties.storageProfile.imageReference.sku),
+    VersaoImagem = tostring(properties.storageProfile.imageReference.version),
+    IdImagem = tostring(properties.storageProfile.imageReference.id),
+    EstadoProvisionamento = tostring(properties.provisioningState),
+    EstadoEnergia = tostring(properties.extended.instanceView.powerState.displayStatus)
+| extend
+    SituacaoInicializacaoSegura = case(
+        TipoSeguranca =~ 'TrustedLaunch' and SecureBootHabilitado =~ 'true' and vTPMHabilitado =~ 'true', 'Trusted Launch com Secure Boot e vTPM',
+        TipoSeguranca =~ 'TrustedLaunch' and SecureBootHabilitado !~ 'true', 'Revisar: Trusted Launch sem Secure Boot habilitado',
+        TipoSeguranca =~ 'TrustedLaunch' and vTPMHabilitado !~ 'true', 'Revisar: Trusted Launch sem vTPM habilitado',
+        TipoSeguranca =~ 'ConfidentialVM', 'Confidential VM',
+        isempty(TipoSeguranca), 'Security Type nao informado',
+        TipoSeguranca
+    )
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeVM = name,
+    Localizacao = location,
+    SistemaOperacional,
+    GeracaoHyperV,
+    TipoSeguranca,
+    SecureBootHabilitado,
+    vTPMHabilitado,
+    SituacaoInicializacaoSegura,
+    PublisherImagem,
+    OfertaImagem,
+    SKUImagem,
+    VersaoImagem,
+    IdImagem,
+    EstadoProvisionamento,
+    EstadoEnergia,
+    Tags = tostring(tags),
+    ResourceId = id
+| order by SituacaoInicializacaoSegura asc, NomeSubscription asc, NomeVM asc
