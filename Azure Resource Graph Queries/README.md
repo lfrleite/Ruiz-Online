@@ -7,10 +7,39 @@ Biblioteca pública de consultas para inventário, governança, segurança, oper
 - Não incluir nomes de clientes, tenants, domínios, e-mails, subscriptions ou recursos reais.
 - Não manter IDs reais de subscriptions dentro das consultas.
 - Obter o nome da subscription dinamicamente por `ResourceContainers` quando aplicável.
-- Manter exemplos de filtro por subscription apenas no README da consulta.
 - Não utilizar `let` nas consultas destinadas ao Azure Resource Graph Explorer.
 - Não classificar uma consulta como testada ou validada sem evidência de execução em um tenant.
 - Não forçar dados financeiros, de reservas ou APIs específicas dentro do Azure Resource Graph.
+- Manter cada consulta em uma pasta com `query.kql` e `README.md`, exceto quando o README documentar formalmente que a fonte correta está fora do ARG.
+
+## Filtro opcional por subscription
+
+Todo arquivo `query.kql` deve manter no topo um bloco opcional comentado. Para consultas iniciadas em `Resources`, utilize exatamente o padrão abaixo:
+
+```kusto
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+```
+
+Quando a consulta começar em outra tabela, substitua apenas o nome da linha no texto do comentário. Exemplos: `PolicyResources`, `SecurityResources`, `ResourceChanges`, `RecoveryServicesResources`, `ServiceHealthResources`, `HealthResources`, `PatchAssessmentResources`, `PatchInstallationResources`, `MaintenanceResources` ou `AdvisorResources`.
+
+O bloco permanece comentado para que a consulta seja executada sem IDs fixos. Para ativá-lo, remova `//` das linhas do filtro e mantenha a cláusula imediatamente depois da tabela principal.
+
+## Padrão dos READMEs
+
+Cada README de consulta deve conter:
+
+- Objetivo
+- Fonte ou tabela principal
+- Campos retornados
+- Forma de execução
+- Bloco opcional por subscription correspondente ao `query.kql`
+- Limitações
+- Status e data da validação
+- Evidência de revisão ou execução
 
 ## Status de validação
 
@@ -71,4 +100,4 @@ Biblioteca pública de consultas para inventário, governança, segurança, oper
 
 A numeração duplicada no item 16 foi preservada para evitar uma reorganização não solicitada das pastas existentes. Uma futura revisão estrutural pode normalizar a sequência sem alterar o conteúdo funcional.
 
-As consultas novas foram classificadas como **REVISADAS ESTRUTURALMENTE**. Nenhuma delas deve ser apresentada como testada no tenant até que exista evidência real de execução e conferência dos resultados.
+As consultas estão classificadas como **REVISADAS ESTRUTURALMENTE** quando houve apenas revisão estática. Nenhuma deve ser apresentada como testada no tenant até que exista evidência real de execução e conferência dos resultados.
