@@ -1,0 +1,66 @@
+RecoveryServicesResources
+| where type in~ (
+    'microsoft.recoveryservices/vaults/backuppolicies',
+    'microsoft.dataprotection/backupvaults/backuppolicies'
+)
+| extend
+    PolicyId = tolower(id),
+    TipoPolitica = case(
+        type =~ 'microsoft.recoveryservices/vaults/backuppolicies', 'Recovery Services',
+        type =~ 'microsoft.dataprotection/backupvaults/backuppolicies', 'Data Protection',
+        type
+    ),
+    CofreNome = coalesce(
+        extract(@'(?i)/vaults/([^/]+)', 1, id),
+        extract(@'(?i)/backupvaults/([^/]+)', 1, id)
+    ),
+    TipoGerenciamento = tostring(properties.backupManagementType),
+    TipoCarga = tostring(properties.workLoadType),
+    TimeZone = tostring(properties.timeZone),
+    AgendaBackup = tostring(properties.schedulePolicy),
+    Retencao = tostring(properties.retentionPolicy),
+    RetencaoInstantaneaDias = tostring(properties.instantRpRetentionRangeInDays),
+    DatasourceTypes = tostring(properties.datasourceTypes),
+    PolicyRules = tostring(properties.policyRules),
+    EstadoProvisionamento = tostring(properties.provisioningState)
+| join kind=leftouter (
+    RecoveryServicesResources
+    | where type in~ (
+        'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems',
+        'microsoft.dataprotection/backupvaults/backupinstances'
+    )
+    | extend PolicyId = tolower(coalesce(
+        tostring(properties.policyId),
+        tostring(properties.policyInfo.policyId),
+        tostring(properties.backupPolicyId)
+    ))
+    | where isnotempty(PolicyId)
+    | summarize QuantidadeItensProtegidos = count() by PolicyId
+) on PolicyId
+| project-away PolicyId1
+| extend QuantidadeItensProtegidos = coalesce(QuantidadeItensProtegidos, 0)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    CofreNome,
+    NomePolitica = name,
+    TipoPolitica,
+    TipoGerenciamento,
+    TipoCarga,
+    TimeZone,
+    AgendaBackup,
+    Retencao,
+    RetencaoInstantaneaDias,
+    DatasourceTypes,
+    PolicyRules,
+    EstadoProvisionamento,
+    QuantidadeItensProtegidos,
+    ResourceId = id
+| order by NomeSubscription asc, CofreNome asc, NomePolitica asc
