@@ -1,0 +1,50 @@
+PolicyResources
+| where type in~ (
+    'microsoft.authorization/policyassignments',
+    'microsoft.authorization/policyexemptions',
+    'microsoft.authorization/policydefinitions',
+    'microsoft.authorization/policysetdefinitions'
+)
+| extend
+    TipoObjeto = case(
+        type =~ 'microsoft.authorization/policyassignments', 'Atribuicao',
+        type =~ 'microsoft.authorization/policyexemptions', 'Excecao',
+        type =~ 'microsoft.authorization/policydefinitions', 'Definicao',
+        type =~ 'microsoft.authorization/policysetdefinitions', 'Iniciativa',
+        type
+    ),
+    NomeExibicao = coalesce(tostring(properties.displayName), name),
+    Descricao = tostring(properties.description),
+    IdDefinicaoPolitica = tostring(properties.policyDefinitionId),
+    Escopo = coalesce(tostring(properties.scope), extract(@'^(.*?)/providers/microsoft.authorization/', 1, tolower(id))),
+    EnforcementMode = tostring(properties.enforcementMode),
+    Identidade = tostring(identity.type),
+    CategoriaExcecao = tostring(properties.exemptionCategory),
+    DataExpiracaoUTC = todatetime(properties.expiresOn),
+    IdAtribuicaoRelacionada = tostring(properties.policyAssignmentId),
+    Metadados = tostring(properties.metadata),
+    Parametros = tostring(properties.parameters)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    TipoObjeto,
+    NomeObjeto = name,
+    NomeExibicao,
+    Descricao,
+    Escopo,
+    IdDefinicaoPolitica,
+    EnforcementMode,
+    Identidade,
+    CategoriaExcecao,
+    DataExpiracaoUTC,
+    IdAtribuicaoRelacionada,
+    Metadados,
+    Parametros,
+    ResourceId = id
+| order by TipoObjeto asc, NomeSubscription asc, NomeExibicao asc
