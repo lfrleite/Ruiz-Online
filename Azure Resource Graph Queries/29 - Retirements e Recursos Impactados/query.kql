@@ -1,0 +1,78 @@
+ServiceHealthResources
+| where type =~ 'microsoft.resourcehealth/events/impactedresources'
+| extend
+    TrackingId = extract(@'(?i)/events/([^/]+)/impactedresources/', 1, id),
+    RecursoImpactadoId = coalesce(
+        tostring(properties.targetResourceId),
+        tostring(properties.resourceId)
+    ),
+    TipoRecursoImpactado = coalesce(
+        tostring(properties.targetResourceType),
+        tostring(properties.resourceType)
+    ),
+    RegiaoImpactada = coalesce(
+        tostring(properties.targetResourceRegion),
+        tostring(properties.region)
+    ),
+    StatusImpacto = tostring(properties.status)
+| join kind=leftouter (
+    ServiceHealthResources
+    | where type =~ 'microsoft.resourcehealth/events'
+    | extend
+        TrackingId = coalesce(
+            tostring(properties.TrackingId),
+            tostring(properties.trackingId),
+            name
+        ),
+        TipoEvento = coalesce(tostring(properties.EventType), tostring(properties.eventType)),
+        StatusEvento = coalesce(tostring(properties.Status), tostring(properties.status)),
+        Titulo = coalesce(tostring(properties.Title), tostring(properties.title)),
+        Resumo = coalesce(tostring(properties.Summary), tostring(properties.summary)),
+        InicioImpactoUTC = todatetime(coalesce(properties.ImpactStartTime, properties.impactStartTime)),
+        MitigacaoEstimadaUTC = todatetime(coalesce(properties.ImpactMitigationTime, properties.impactMitigationTime)),
+        UltimaAtualizacaoUTC = todatetime(coalesce(properties.LastUpdateTime, properties.lastUpdateTime))
+    | extend TextoEvento = strcat(Titulo, ' ', Resumo)
+    | where TipoEvento =~ 'HealthAdvisory'
+    | where TextoEvento has_any (
+        'retire',
+        'retirement',
+        'deprecated',
+        'deprecation',
+        'descontinua',
+        'aposent'
+    )
+    | project
+        subscriptionId,
+        TrackingId,
+        TipoEvento,
+        StatusEvento,
+        Titulo,
+        Resumo,
+        InicioImpactoUTC,
+        MitigacaoEstimadaUTC,
+        UltimaAtualizacaoUTC
+) on subscriptionId, TrackingId
+| project-away subscriptionId1, TrackingId1
+| where isnotempty(Titulo)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    TrackingId,
+    TipoEvento,
+    StatusEvento,
+    Titulo,
+    Resumo,
+    InicioImpactoUTC,
+    MitigacaoEstimadaUTC,
+    UltimaAtualizacaoUTC,
+    RecursoImpactadoId,
+    TipoRecursoImpactado,
+    RegiaoImpactada,
+    StatusImpacto
+| order by MitigacaoEstimadaUTC asc, NomeSubscription asc, Titulo asc
