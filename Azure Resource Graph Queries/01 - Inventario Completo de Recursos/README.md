@@ -2,41 +2,51 @@
 
 ## Objetivo
 
-Inventariar os recursos disponíveis no Azure Resource Graph com informações técnicas, administrativas e de governança expostas pela tabela `Resources`.
+Inventariar recursos disponíveis no Azure Resource Graph, incluindo subscription, Resource Group, tipo, localização, SKU, zonas, tags de governança, ambiente inferido e metadados administrativos quando expostos pelo provedor.
 
-## Arquivo
+## Fonte
 
-- `query.kql`: consulta pronta para uso no Azure Resource Graph Explorer.
+- `Resources`
+- `ResourceContainers`, utilizada para obter o nome da subscription
 
-## Informações retornadas
+## Campos retornados
 
-- Nome e ID do recurso
-- Tipo, Resource Group e localização
-- Subscription ID e Subscription Name
-- SKU, zonas e localização estendida
-- Identidade gerenciada
+- Nome e ID da subscription
+- Resource Group
+- Nome, tipo, `kind` e localização do recurso
+- SKU e zonas
 - Recurso gerenciador
-- Plano do recurso
-- Tags
-- Propriedades completas retornadas pelo provedor
+- Ambiente inferido
+- Tags de ambiente, responsável, centro de custo, aplicação e criticidade
+- `systemData` de criação e última modificação, quando disponível
+- Todas as tags e Resource ID
 
-## Filtrar por subscriptions
+## Execução
 
-A consulta não possui subscriptions fixas. Para limitar o escopo, adicione a etapa abaixo imediatamente após `Resources`:
+Execute o arquivo `query.kql` no Azure Resource Graph Explorer, Azure CLI com `az graph query` ou Azure PowerShell com `Search-AzGraph`.
+
+### Filtro opcional por subscription
+
+O arquivo `query.kql` contém o bloco abaixo comentado no topo. Para ativá-lo, remova `//` e mantenha o filtro imediatamente após a linha `Resources`:
 
 ```kusto
-| where subscriptionId in (
-    'SUBSCRIPTION-ID-1',
-    'SUBSCRIPTION-ID-2'
-)
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
 ```
-
-Também é possível selecionar as subscriptions diretamente no escopo do Azure Resource Graph Explorer.
 
 ## Limitações
 
-A tabela `Resources` não expõe de forma uniforme a data de criação, o criador ou a última identidade que modificou cada recurso. Essas informações não devem ser consultadas por `systemData` nesta query.
+- `systemData` não é preenchido de forma uniforme para todos os tipos de recurso e pode retornar valores vazios.
+- O ambiente é inferido por tags, nomes e textos associados ao recurso; o resultado deve ser tratado como indicação, não como classificação definitiva.
+- As variações de tags contempladas pela consulta não representam todas as convenções possíveis.
+- A consulta não substitui o Azure Activity Log ou `ResourceChanges` para auditoria histórica.
 
-Para auditoria de criação e alteração, utilize as tabelas `resourcechanges` e `resourcecontainerchanges`, ou complemente a análise com o Azure Activity Log.
+## Status de validação
 
-Campos dinâmicos como `sku`, `identity`, `plan`, `extendedLocation` e `properties` podem ficar vazios para tipos de recursos que não disponibilizam essas informações no Resource Graph.
+- Status: **REVISADA ESTRUTURALMENTE**
+- Data da revisão: **31/07/2026**
+- Evidência: revisão estática da consulta e alinhamento da documentação com os campos projetados.
+- Execução no tenant: **não realizada**
