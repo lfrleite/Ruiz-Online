@@ -1,0 +1,43 @@
+HealthResources
+| where type =~ 'microsoft.resourcehealth/availabilitystatuses'
+| extend
+    ResourceId = tolower(tostring(properties.targetResourceId)),
+    EstadoDisponibilidade = tostring(properties.availabilityState),
+    Resumo = tostring(properties.summary),
+    Motivo = tostring(properties.reasonType),
+    Cronicidade = tostring(properties.reasonChronicity),
+    OcorridoEmUTC = todatetime(properties.occuredTime),
+    ReportadoEmUTC = todatetime(properties.reportedTime),
+    Resolucao = tostring(properties.resolutionETA)
+| join kind=leftouter (
+    Resources
+    | project
+        ResourceId = tolower(id),
+        NomeRecurso = name,
+        TipoRecurso = type,
+        resourceGroup,
+        Localizacao = location
+) on ResourceId
+| project-away ResourceId1
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeRecurso,
+    TipoRecurso,
+    Localizacao,
+    EstadoDisponibilidade,
+    Resumo,
+    Motivo,
+    Cronicidade,
+    OcorridoEmUTC,
+    ReportadoEmUTC,
+    Resolucao,
+    ResourceId
+| order by EstadoDisponibilidade asc, NomeSubscription asc, TipoRecurso asc, NomeRecurso asc
