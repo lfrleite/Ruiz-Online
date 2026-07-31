@@ -1,0 +1,40 @@
+SecurityResources
+| where type =~ 'microsoft.security/locations/alerts'
+| extend
+    StatusAlerta = coalesce(tostring(properties.Status), tostring(properties.status)),
+    Severidade = coalesce(tostring(properties.Severity), tostring(properties.severity)),
+    TipoAlerta = coalesce(tostring(properties.AlertType), tostring(properties.alertType)),
+    NomeAlerta = coalesce(tostring(properties.AlertDisplayName), tostring(properties.alertDisplayName)),
+    SystemAlertId = coalesce(tostring(properties.SystemAlertId), tostring(properties.systemAlertId)),
+    EntidadeComprometida = coalesce(tostring(properties.CompromisedEntity), tostring(properties.compromisedEntity)),
+    GeradoEmUTC = todatetime(coalesce(properties.TimeGenerated, properties.timeGenerated)),
+    Descricao = coalesce(tostring(properties.Description), tostring(properties.description)),
+    Intencao = coalesce(tostring(properties.Intent), tostring(properties.intent)),
+    ResourceIdentifiers = tostring(coalesce(properties.ResourceIdentifiers, properties.resourceIdentifiers)),
+    PassosRemediacao = tostring(coalesce(properties.RemediationSteps, properties.remediationSteps)),
+    PropriedadesEstendidas = tostring(coalesce(properties.ExtendedProperties, properties.extendedProperties))
+| where StatusAlerta =~ 'Active'
+| where Severidade in~ ('Low', 'Medium', 'High')
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    Severidade,
+    StatusAlerta,
+    NomeAlerta,
+    TipoAlerta,
+    SystemAlertId,
+    EntidadeComprometida,
+    GeradoEmUTC,
+    Descricao,
+    Intencao,
+    ResourceIdentifiers,
+    PassosRemediacao,
+    PropriedadesEstendidas,
+    AlertResourceId = id
+| order by Severidade desc, GeradoEmUTC desc, NomeSubscription asc, NomeAlerta asc
