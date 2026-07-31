@@ -1,0 +1,44 @@
+SecurityResources
+| where type =~ 'microsoft.security/assessments'
+| extend
+    IdRecomendacao = tostring(name),
+    NomeRecomendacao = tostring(properties.displayName),
+    EstadoRecomendacao = tostring(properties.status.code),
+    Severidade = tostring(properties.metadata.severity),
+    Descricao = tostring(properties.metadata.description),
+    Remediacao = tostring(properties.metadata.remediationDescription),
+    TipoAvaliacao = tostring(properties.metadata.assessmentType),
+    IdDefinicaoPolitica = tostring(properties.metadata.policyDefinitionId),
+    EsforcoImplementacao = tostring(properties.metadata.implementationEffort),
+    ImpactoUsuario = tostring(properties.metadata.userImpact),
+    Categorias = tostring(properties.metadata.categories),
+    Ameacas = tostring(properties.metadata.threats),
+    RecursoAvaliadoId = tostring(properties.resourceDetails.id),
+    OrigemRecurso = tostring(properties.resourceDetails.source),
+    LinkPortal = tostring(properties.links.azurePortal)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    NomeRecomendacao,
+    IdRecomendacao,
+    EstadoRecomendacao,
+    Severidade,
+    Categorias,
+    Descricao,
+    Remediacao,
+    TipoAvaliacao,
+    EsforcoImplementacao,
+    ImpactoUsuario,
+    Ameacas,
+    RecursoAvaliadoId,
+    OrigemRecurso,
+    IdDefinicaoPolitica,
+    LinkPortal,
+    AssessmentResourceId = id
+| order by Severidade desc, NomeSubscription asc, NomeRecomendacao asc
