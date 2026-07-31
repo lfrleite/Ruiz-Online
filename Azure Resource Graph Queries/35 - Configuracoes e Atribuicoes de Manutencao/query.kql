@@ -1,0 +1,46 @@
+MaintenanceResources
+| where type endswith '/configurationassignments' or type endswith '/applyupdates'
+| extend
+    TipoRegistro = case(
+        type endswith '/configurationassignments', 'Atribuicao de manutencao',
+        type endswith '/applyupdates', 'Execucao de manutencao',
+        type
+    ),
+    ResourceIdAlvo = tolower(tostring(properties.resourceId)),
+    MaintenanceConfigurationId = tostring(properties.maintenanceConfigurationId),
+    EscopoManutencao = tostring(properties.maintenanceScope),
+    CorrelationId = tostring(properties.correlationId),
+    InicioUTC = todatetime(properties.startDateTime),
+    TerminoUTC = todatetime(properties.endDateTime)
+| join kind=leftouter (
+    Resources
+    | project
+        ResourceIdAlvo = tolower(id),
+        NomeRecurso = name,
+        TipoRecurso = type,
+        resourceGroup,
+        Localizacao = location
+) on ResourceIdAlvo
+| project-away ResourceIdAlvo1
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeRecurso,
+    TipoRecurso,
+    Localizacao,
+    TipoRegistro,
+    MaintenanceConfigurationId,
+    EscopoManutencao,
+    CorrelationId,
+    InicioUTC,
+    TerminoUTC,
+    ResourceIdAlvo,
+    RegistroManutencaoId = id
+| order by InicioUTC desc, NomeSubscription asc, NomeRecurso asc
