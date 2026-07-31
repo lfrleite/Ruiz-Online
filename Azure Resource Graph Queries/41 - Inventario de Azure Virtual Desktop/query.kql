@@ -1,0 +1,69 @@
+Resources
+| where type in~ (
+    'microsoft.desktopvirtualization/hostpools',
+    'microsoft.desktopvirtualization/workspaces',
+    'microsoft.desktopvirtualization/applicationgroups',
+    'microsoft.desktopvirtualization/scalingplans'
+)
+| extend
+    TipoRecursoAVD = case(
+        type =~ 'microsoft.desktopvirtualization/hostpools', 'Host Pool',
+        type =~ 'microsoft.desktopvirtualization/workspaces', 'Workspace',
+        type =~ 'microsoft.desktopvirtualization/applicationgroups', 'Application Group',
+        type =~ 'microsoft.desktopvirtualization/scalingplans', 'Scaling Plan',
+        type
+    ),
+    EstadoProvisionamento = tostring(properties.provisioningState),
+    NomeAmigavel = tostring(properties.friendlyName),
+    Descricao = tostring(properties.description),
+    TipoHostPool = tostring(properties.hostPoolType),
+    TipoBalanceamento = tostring(properties.loadBalancerType),
+    TipoAppGroupPreferencial = tostring(properties.preferredAppGroupType),
+    TipoAtribuicaoDesktop = tostring(properties.personalDesktopAssignmentType),
+    LimiteMaximoSessoes = toint(properties.maxSessionLimit),
+    StartVMOnConnect = tostring(properties.startVMOnConnect),
+    AmbienteValidacao = tostring(properties.validationEnvironment),
+    CustomRdpProperty = tostring(properties.customRdpProperty),
+    HostPoolArmPath = tostring(properties.hostPoolArmPath),
+    TipoApplicationGroup = tostring(properties.applicationGroupType),
+    ApplicationGroupReferences = tostring(properties.applicationGroupReferences),
+    PublicNetworkAccess = tostring(properties.publicNetworkAccess),
+    TimeZone = tostring(properties.timeZone),
+    HostPoolReferences = tostring(properties.hostPoolReferences),
+    Schedules = tostring(properties.schedules),
+    ExclusionTag = tostring(properties.exclusionTag)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    TipoRecursoAVD,
+    NomeRecurso = name,
+    Localizacao = location,
+    NomeAmigavel,
+    Descricao,
+    EstadoProvisionamento,
+    TipoHostPool,
+    TipoBalanceamento,
+    TipoAppGroupPreferencial,
+    TipoAtribuicaoDesktop,
+    LimiteMaximoSessoes,
+    StartVMOnConnect,
+    AmbienteValidacao,
+    CustomRdpProperty,
+    HostPoolArmPath,
+    TipoApplicationGroup,
+    ApplicationGroupReferences,
+    PublicNetworkAccess,
+    TimeZone,
+    HostPoolReferences,
+    Schedules,
+    ExclusionTag,
+    Tags = tostring(tags),
+    ResourceId = id
+| order by NomeSubscription asc, TipoRecursoAVD asc, NomeRecurso asc
