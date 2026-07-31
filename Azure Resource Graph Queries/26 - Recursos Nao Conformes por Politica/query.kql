@@ -1,0 +1,40 @@
+PolicyResources
+| where type =~ 'microsoft.policyinsights/policystates'
+| where tostring(properties.complianceState) =~ 'NonCompliant'
+| extend
+    NomeAtribuicao = tostring(properties.policyAssignmentName),
+    IdAtribuicao = tostring(properties.policyAssignmentId),
+    NomeDefinicao = tostring(properties.policyDefinitionName),
+    IdDefinicao = tostring(properties.policyDefinitionId),
+    ReferenciaDefinicao = tostring(properties.policyDefinitionReferenceId),
+    ResourceIdAvaliado = tostring(properties.resourceId),
+    TipoRecursoAvaliado = tostring(properties.resourceType),
+    LocalizacaoRecurso = tostring(properties.resourceLocation),
+    EstadoConformidade = tostring(properties.complianceState),
+    MotivoNaoConformidade = coalesce(
+        tostring(properties.complianceReasonCode),
+        tostring(properties.nonComplianceMessages)
+    ),
+    DataAvaliacaoUTC = todatetime(properties.timestamp)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    ResourceIdAvaliado,
+    TipoRecursoAvaliado,
+    LocalizacaoRecurso,
+    NomeAtribuicao,
+    IdAtribuicao,
+    NomeDefinicao,
+    IdDefinicao,
+    ReferenciaDefinicao,
+    EstadoConformidade,
+    MotivoNaoConformidade,
+    DataAvaliacaoUTC
+| order by NomeSubscription asc, NomeAtribuicao asc, TipoRecursoAvaliado asc, ResourceIdAvaliado asc
