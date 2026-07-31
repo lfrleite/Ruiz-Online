@@ -1,0 +1,38 @@
+PolicyResources
+| where type =~ 'microsoft.policyinsights/policystates'
+| extend
+    EstadoConformidade = tostring(properties.complianceState),
+    IdAtribuicao = tostring(properties.policyAssignmentId),
+    NomeAtribuicao = tostring(properties.policyAssignmentName),
+    IdDefinicao = tostring(properties.policyDefinitionId),
+    NomeDefinicao = tostring(properties.policyDefinitionName),
+    TipoRecursoAvaliado = tostring(properties.resourceType),
+    ResourceIdAvaliado = tostring(properties.resourceId)
+| summarize
+    TotalAvaliacoes = count(),
+    Conformes = countif(EstadoConformidade =~ 'Compliant'),
+    NaoConformes = countif(EstadoConformidade =~ 'NonCompliant'),
+    Isentos = countif(EstadoConformidade =~ 'Exempt'),
+    Conflitos = countif(EstadoConformidade =~ 'Conflicting'),
+    NaoIniciados = countif(EstadoConformidade =~ 'NotStarted')
+    by subscriptionId, NomeAtribuicao, IdAtribuicao
+| extend PercentualConformidade = iff(TotalAvaliacoes == 0, real(null), round(100.0 * todouble(Conformes) / todouble(TotalAvaliacoes), 2))
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    NomeAtribuicao,
+    IdAtribuicao,
+    TotalAvaliacoes,
+    Conformes,
+    NaoConformes,
+    Isentos,
+    Conflitos,
+    NaoIniciados,
+    PercentualConformidade
+| order by PercentualConformidade asc, NomeSubscription asc, NomeAtribuicao asc
