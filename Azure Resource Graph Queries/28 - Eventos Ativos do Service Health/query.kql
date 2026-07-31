@@ -1,0 +1,37 @@
+ServiceHealthResources
+| where type =~ 'microsoft.resourcehealth/events'
+| extend
+    StatusEvento = coalesce(tostring(properties.Status), tostring(properties.status)),
+    TipoEvento = coalesce(tostring(properties.EventType), tostring(properties.eventType)),
+    NivelEvento = coalesce(tostring(properties.EventLevel), tostring(properties.eventLevel), tostring(properties.Level)),
+    Titulo = coalesce(tostring(properties.Title), tostring(properties.title)),
+    Resumo = coalesce(tostring(properties.Summary), tostring(properties.summary)),
+    TrackingId = coalesce(tostring(properties.TrackingId), tostring(properties.trackingId), name),
+    InicioImpactoUTC = todatetime(coalesce(properties.ImpactStartTime, properties.impactStartTime)),
+    MitigacaoEstimadaUTC = todatetime(coalesce(properties.ImpactMitigationTime, properties.impactMitigationTime)),
+    UltimaAtualizacaoUTC = todatetime(coalesce(properties.LastUpdateTime, properties.lastUpdateTime)),
+    ServicosImpactados = tostring(coalesce(properties.Impact, properties.impact, properties.impactedServices)),
+    CabecalhoComunicacao = tostring(coalesce(properties.Header, properties.header))
+| where StatusEvento =~ 'Active'
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    TipoEvento,
+    NivelEvento,
+    StatusEvento,
+    Titulo,
+    Resumo,
+    TrackingId,
+    InicioImpactoUTC,
+    MitigacaoEstimadaUTC,
+    UltimaAtualizacaoUTC,
+    ServicosImpactados,
+    CabecalhoComunicacao,
+    ResourceId = id
+| order by InicioImpactoUTC desc, NomeSubscription asc, TipoEvento asc
