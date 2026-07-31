@@ -24,11 +24,14 @@ Execute no Azure Resource Graph Explorer, Azure CLI ou Azure PowerShell.
 
 ### Filtro opcional por subscription
 
+O arquivo `query.kql` contém o bloco abaixo comentado no topo. Para ativá-lo, remova `//` e mantenha o filtro imediatamente após a linha `AdvisorResources`:
+
 ```kusto
-| where subscriptionId in~ (
-    '00000000-0000-0000-0000-000000000000',
-    '11111111-1111-1111-1111-111111111111'
-)
+// Para filtrar por subscriptions, insira após a linha "AdvisorResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
 ```
 
 ## Limitações
