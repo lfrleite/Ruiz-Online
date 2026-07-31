@@ -1,3 +1,9 @@
+// Para filtrar por subscriptions, insira após a linha "RecoveryServicesResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
 RecoveryServicesResources
 | where type in~ (
     'microsoft.recoveryservices/vaults/backupjobs',
