@@ -1,0 +1,51 @@
+Resources
+| where type =~ 'microsoft.web/serverfarms'
+| extend IdPlano = tolower(id)
+| project
+    subscriptionId,
+    resourceGroup,
+    NomePlano = name,
+    IdPlano,
+    Localizacao = location,
+    SKU = tostring(sku.name),
+    CamadaSKU = tostring(sku.tier),
+    Capacidade = toint(sku.capacity),
+    Linux = tostring(properties.reserved),
+    EstadoProvisionamento = tostring(properties.provisioningState)
+| join kind=leftouter (
+    Resources
+    | where type =~ 'microsoft.web/sites'
+    | extend IdPlano = tolower(tostring(properties.serverFarmId))
+    | summarize
+        QuantidadeApps = count(),
+        Aplicacoes = make_set(name, 500),
+        TiposAplicacao = make_set(kind, 100)
+        by IdPlano
+) on IdPlano
+| project-away IdPlano1
+| extend
+    QuantidadeApps = coalesce(QuantidadeApps, 0),
+    PlanoSemApps = iff(coalesce(QuantidadeApps, 0) == 0, 'SIM', 'NAO')
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomePlano,
+    Localizacao,
+    SKU,
+    CamadaSKU,
+    Capacidade,
+    Linux,
+    EstadoProvisionamento,
+    QuantidadeApps,
+    PlanoSemApps,
+    Aplicacoes,
+    TiposAplicacao,
+    ResourceId = IdPlano
+| order by PlanoSemApps desc, NomeSubscription asc, NomePlano asc
