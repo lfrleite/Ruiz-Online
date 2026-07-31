@@ -1,0 +1,67 @@
+RecoveryServicesResources
+| where type in~ (
+    'microsoft.recoveryservices/vaults/backupjobs',
+    'microsoft.dataprotection/backupvaults/backupjobs'
+)
+| extend
+    StatusJob = coalesce(
+        tostring(properties.status),
+        tostring(properties.jobStatus)
+    ),
+    Operacao = coalesce(
+        tostring(properties.operation),
+        tostring(properties.operationCategory)
+    ),
+    InicioUTC = todatetime(coalesce(properties.startTime, properties.startDateTime)),
+    TerminoUTC = todatetime(coalesce(properties.endTime, properties.endDateTime)),
+    Duracao = tostring(properties.duration),
+    NomeEntidade = coalesce(
+        tostring(properties.entityFriendlyName),
+        tostring(properties.dataSourceName),
+        tostring(properties.dataSourceInfo.resourceName)
+    ),
+    TipoCarga = coalesce(
+        tostring(properties.backupManagementType),
+        tostring(properties.dataSourceType),
+        tostring(properties.dataSourceInfo.datasourceType)
+    ),
+    ErroCodigo = coalesce(
+        tostring(properties.errorCode),
+        tostring(properties.errorDetails.code)
+    ),
+    ErroDetalhes = coalesce(
+        tostring(properties.errorDetails),
+        tostring(properties.errorMessage)
+    ),
+    CofreNome = coalesce(
+        extract(@'(?i)/vaults/([^/]+)', 1, id),
+        extract(@'(?i)/backupvaults/([^/]+)', 1, id)
+    )
+| where StatusJob in~ (
+    'Failed',
+    'CompletedWithWarnings',
+    'PartiallySucceeded',
+    'CompletedWithWarning'
+)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    CofreNome,
+    NomeEntidade,
+    TipoCarga,
+    Operacao,
+    StatusJob,
+    InicioUTC,
+    TerminoUTC,
+    Duracao,
+    ErroCodigo,
+    ErroDetalhes,
+    JobId = id
+| order by InicioUTC desc, NomeSubscription asc, CofreNome asc, NomeEntidade asc
