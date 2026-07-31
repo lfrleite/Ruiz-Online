@@ -1,0 +1,74 @@
+PatchAssessmentResources
+| where type endswith '/patchassessmentresults'
+| extend
+    ResourceIdMaquina = tolower(extract(@'(?i)^(.*?)/patchassessmentresults/', 1, id)),
+    SistemaOperacional = tostring(properties.osType),
+    ReinicializacaoPendente = tostring(properties.rebootPending),
+    ServicoAtualizacao = tostring(properties.patchServiceUsed),
+    InicioAvaliacaoUTC = todatetime(properties.startDateTime),
+    UltimaModificacaoUTC = todatetime(properties.lastModifiedDateTime),
+    IniciadoPor = tostring(properties.startedBy),
+    Erros = tostring(properties.errorDetails),
+    ContagemPorClassificacao = tostring(properties.availablePatchCountByClassification),
+    Criticas = toint(properties.availablePatchCountByClassification.critical),
+    Seguranca = toint(properties.availablePatchCountByClassification.security),
+    UpdateRollups = toint(properties.availablePatchCountByClassification.updateRollup),
+    FeaturePacks = toint(properties.availablePatchCountByClassification.featurePack),
+    ServicePacks = toint(properties.availablePatchCountByClassification.servicePack),
+    Definicoes = toint(properties.availablePatchCountByClassification.definition),
+    Atualizacoes = toint(properties.availablePatchCountByClassification.updates),
+    Outras = toint(coalesce(
+        properties.availablePatchCountByClassification.other,
+        properties.availablePatchCountByClassification.others
+    ))
+| extend TotalPendente =
+    coalesce(Criticas, 0) +
+    coalesce(Seguranca, 0) +
+    coalesce(UpdateRollups, 0) +
+    coalesce(FeaturePacks, 0) +
+    coalesce(ServicePacks, 0) +
+    coalesce(Definicoes, 0) +
+    coalesce(Atualizacoes, 0) +
+    coalesce(Outras, 0)
+| join kind=leftouter (
+    Resources
+    | project
+        ResourceIdMaquina = tolower(id),
+        NomeMaquina = name,
+        TipoMaquina = type,
+        resourceGroup,
+        Localizacao = location
+) on ResourceIdMaquina
+| project-away ResourceIdMaquina1
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeMaquina,
+    TipoMaquina,
+    Localizacao,
+    SistemaOperacional,
+    InicioAvaliacaoUTC,
+    UltimaModificacaoUTC,
+    ReinicializacaoPendente,
+    ServicoAtualizacao,
+    TotalPendente,
+    Criticas,
+    Seguranca,
+    UpdateRollups,
+    FeaturePacks,
+    ServicePacks,
+    Definicoes,
+    Atualizacoes,
+    Outras,
+    ContagemPorClassificacao,
+    IniciadoPor,
+    Erros,
+    ResourceIdMaquina
+| order by TotalPendente desc, NomeSubscription asc, NomeMaquina asc
