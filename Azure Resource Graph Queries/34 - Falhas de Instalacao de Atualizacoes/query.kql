@@ -1,0 +1,49 @@
+PatchInstallationResources
+| where type endswith '/patchinstallationresults/softwarepatches'
+| where tostring(properties.installationState) =~ 'Failed'
+| extend
+    ResourceIdMaquina = tolower(extract(@'(?i)^(.*?)/patchinstallationresults/', 1, id)),
+    EstadoInstalacao = tostring(properties.installationState),
+    NomeAtualizacao = coalesce(tostring(properties.patchName), name),
+    KBID = tostring(properties.kbid),
+    Versao = tostring(properties.version),
+    Classificacoes = tostring(properties.classifications),
+    PublicadaEmUTC = todatetime(properties.publishedDateTime),
+    UltimaModificacaoUTC = todatetime(properties.lastModifiedDateTime),
+    ReinicializacaoNecessaria = tostring(properties.rebootRequired),
+    ComportamentoReinicio = tostring(properties.rebootBehavior)
+| join kind=leftouter (
+    Resources
+    | project
+        ResourceIdMaquina = tolower(id),
+        NomeMaquina = name,
+        TipoMaquina = type,
+        resourceGroup,
+        Localizacao = location
+) on ResourceIdMaquina
+| project-away ResourceIdMaquina1
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeMaquina,
+    TipoMaquina,
+    Localizacao,
+    EstadoInstalacao,
+    NomeAtualizacao,
+    KBID,
+    Versao,
+    Classificacoes,
+    PublicadaEmUTC,
+    UltimaModificacaoUTC,
+    ReinicializacaoNecessaria,
+    ComportamentoReinicio,
+    ResourceIdMaquina,
+    RegistroPatchId = id
+| order by UltimaModificacaoUTC desc, NomeSubscription asc, NomeMaquina asc, NomeAtualizacao asc
