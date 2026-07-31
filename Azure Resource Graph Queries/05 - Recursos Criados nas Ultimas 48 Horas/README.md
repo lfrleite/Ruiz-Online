@@ -2,49 +2,52 @@
 
 ## Objetivo
 
-Localizar eventos de criação de recursos registrados pelo Azure Resource Graph nas últimas 48 horas, apresentando informações do recurso e da identidade responsável pela operação.
+Localizar eventos de criação de recursos registrados no Azure Resource Graph durante as últimas 48 horas, incluindo informações da operação e da identidade responsável quando disponíveis.
 
-## Arquivo
+## Fonte
 
-- `query.kql`: consulta pronta para uso no Azure Resource Graph Explorer.
+- `ResourceChanges`
+- `ResourceContainers`, utilizada para obter o nome da subscription
 
-## Informações retornadas
+## Campos retornados
 
-- Subscription Name e Subscription ID
-- Nome, tipo, Resource Group e localização
-- Data de criação em GMT-3
-- Data de criação original em UTC
-- Identidade responsável pela criação
-- Tipo da identidade
-- Cliente de origem, como Portal, CLI ou automação, quando disponível
-- Operação e Correlation ID
-- Tags e Resource ID
+- Nome e ID da subscription
+- Nome, tipo e Resource Group do recurso
+- Data de criação em UTC
+- Data convertida para GMT-3
+- Data formatada como `dd-MM-yyyy_HH-mm-ss`
+- Identidade responsável e tipo da identidade
+- Cliente de origem
+- Operação
+- Correlation ID
+- Resource ID
 
-## Formato da data
+## Execução
 
-A coluna `DataCriacao` utiliza o padrão:
+Execute o arquivo `query.kql` no Azure Resource Graph Explorer, Azure CLI com `az graph query` ou Azure PowerShell com `Search-AzGraph`.
 
-```text
-dd-MM-yyyy_HH-mm-ss
-```
+### Filtro opcional por subscription
 
-O horário é convertido de UTC para GMT-3 por meio de `datetime_add('hour', -3, DataCriacaoUTC)`.
-
-## Filtrar por subscriptions
-
-A consulta não possui subscriptions fixas. Para limitar o escopo, adicione a etapa abaixo imediatamente após `resourcechanges`:
+O arquivo `query.kql` contém o bloco abaixo comentado no topo. Para ativá-lo, remova `//` e mantenha o filtro imediatamente após a linha `ResourceChanges`:
 
 ```kusto
-| where subscriptionId in (
-    'SUBSCRIPTION-ID-1',
-    'SUBSCRIPTION-ID-2'
-)
+// Para filtrar por subscriptions, insira após a linha "ResourceChanges":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
 ```
 
-Também é possível selecionar as subscriptions diretamente no escopo do Azure Resource Graph Explorer.
+## Limitações
 
-## Observações
+- `changedBy`, `changedByType` e `clientType` podem retornar valores vazios ou não especificados.
+- O nome e o Resource Group são derivados do Resource ID e podem exigir revisão para recursos filhos ou identificadores com estrutura diferente.
+- A consulta não realiza associação com `Resources`; portanto, não retorna localização, tags ou configuração atual do recurso.
+- O histórico disponível depende da retenção da tabela `ResourceChanges`.
 
-A consulta utiliza a tabela `resourcechanges` e filtra eventos cujo `changeType` seja `Create`. Informações como `CriadoPor`, `TipoCriador` e `ClienteOrigem` podem aparecer como não especificadas quando o evento ou os metadados do recurso não fornecerem a identidade responsável.
+## Status de validação
 
-A associação com a tabela `Resources` complementa nome, localização e tags. Caso o recurso tenha sido removido logo após a criação, esses campos complementares podem ficar vazios.
+- Status: **REVISADA ESTRUTURALMENTE**
+- Data da revisão: **31/07/2026**
+- Evidência: revisão estática da tabela, filtro temporal e campos projetados.
+- Execução no tenant: **não realizada**
