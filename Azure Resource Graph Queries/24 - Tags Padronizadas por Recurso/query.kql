@@ -20,24 +20,24 @@ Resources
     SO = tostring(tags['SO'])
 | extend
     QuantidadeTagsPadraoPreenchidas =
-        toint(isnotempty(CC)) +
-        toint(isnotempty(AMBIENTE)) +
-        toint(isnotempty(CLIENTE)) +
-        toint(isnotempty(CCOWNER)) +
-        toint(isnotempty(CAPEX)) +
-        toint(isnotempty(DISPONIBILIDADE)) +
-        toint(isnotempty(BU)) +
-        toint(isnotempty(DOMINIO)) +
-        toint(isnotempty(ENDOFLIFE)) +
-        toint(isnotempty(FUNCAO)) +
-        toint(isnotempty(PRODUTO)) +
-        toint(isnotempty(RESERVA)) +
-        toint(isnotempty(BACKUP)) +
-        toint(isnotempty(START)) +
-        toint(isnotempty(SQUAD)) +
-        toint(isnotempty(STOP)) +
-        toint(isnotempty(WAVE)) +
-        toint(isnotempty(SO))
+        iff(isnotempty(CC), 1, 0) +
+        iff(isnotempty(AMBIENTE), 1, 0) +
+        iff(isnotempty(CLIENTE), 1, 0) +
+        iff(isnotempty(CCOWNER), 1, 0) +
+        iff(isnotempty(CAPEX), 1, 0) +
+        iff(isnotempty(DISPONIBILIDADE), 1, 0) +
+        iff(isnotempty(BU), 1, 0) +
+        iff(isnotempty(DOMINIO), 1, 0) +
+        iff(isnotempty(ENDOFLIFE), 1, 0) +
+        iff(isnotempty(FUNCAO), 1, 0) +
+        iff(isnotempty(PRODUTO), 1, 0) +
+        iff(isnotempty(RESERVA), 1, 0) +
+        iff(isnotempty(BACKUP), 1, 0) +
+        iff(isnotempty(START), 1, 0) +
+        iff(isnotempty(SQUAD), 1, 0) +
+        iff(isnotempty(STOP), 1, 0) +
+        iff(isnotempty(WAVE), 1, 0) +
+        iff(isnotempty(SO), 1, 0)
 | join kind=leftouter (
     ResourceContainers
     | where type =~ 'microsoft.resources/subscriptions'
