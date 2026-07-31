@@ -1,0 +1,68 @@
+Resources
+| where type =~ 'microsoft.containerservice/managedclusters'
+| extend
+    VersaoKubernetes = tostring(properties.kubernetesVersion),
+    VersaoAtualKubernetes = tostring(properties.currentKubernetesVersion),
+    EstadoProvisionamento = tostring(properties.provisioningState),
+    FQDN = tostring(properties.fqdn),
+    FQDNPrivado = tostring(properties.privateFQDN),
+    ClusterPrivado = tostring(properties.apiServerAccessProfile.enablePrivateCluster),
+    AcessoPublicoAPI = tostring(properties.apiServerAccessProfile.enablePrivateClusterPublicFQDN),
+    PluginRede = tostring(properties.networkProfile.networkPlugin),
+    ModoRede = tostring(properties.networkProfile.networkPluginMode),
+    PoliticaRede = tostring(properties.networkProfile.networkPolicy),
+    LoadBalancerSKU = tostring(properties.networkProfile.loadBalancerSku),
+    OutboundType = tostring(properties.networkProfile.outboundType),
+    ServiceCIDR = tostring(properties.networkProfile.serviceCidr),
+    DNSServiceIP = tostring(properties.networkProfile.dnsServiceIP),
+    Identidade = tostring(identity.type),
+    PerfilEntraID = tostring(properties.aadProfile),
+    NodePools = tostring(properties.agentPoolProfiles),
+    QuantidadeNodePools = array_length(properties.agentPoolProfiles),
+    UpgradeAutomatico = tostring(properties.autoUpgradeProfile.upgradeChannel),
+    NodeOSUpgrade = tostring(properties.autoUpgradeProfile.nodeOSUpgradeChannel),
+    OIDC = tostring(properties.oidcIssuerProfile.enabled),
+    WorkloadIdentity = tostring(properties.securityProfile.workloadIdentity.enabled),
+    Defender = tostring(properties.securityProfile.defender),
+    AzurePolicy = tostring(properties.addonProfiles.azurepolicy.enabled),
+    Monitoramento = tostring(properties.addonProfiles.omsagent.enabled)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeCluster = name,
+    Localizacao = location,
+    VersaoKubernetes,
+    VersaoAtualKubernetes,
+    EstadoProvisionamento,
+    ClusterPrivado,
+    AcessoPublicoAPI,
+    FQDN,
+    FQDNPrivado,
+    PluginRede,
+    ModoRede,
+    PoliticaRede,
+    LoadBalancerSKU,
+    OutboundType,
+    ServiceCIDR,
+    DNSServiceIP,
+    Identidade,
+    PerfilEntraID,
+    QuantidadeNodePools,
+    NodePools,
+    UpgradeAutomatico,
+    NodeOSUpgrade,
+    OIDC,
+    WorkloadIdentity,
+    Defender,
+    AzurePolicy,
+    Monitoramento,
+    Tags = tostring(tags),
+    ResourceId = id
+| order by NomeSubscription asc, NomeCluster asc
