@@ -2,34 +2,43 @@
 
 ## Objetivo
 
-Consolidar a quantidade de recursos por tipo e por subscription, facilitando a leitura executiva do inventário Azure.
+Consolidar a quantidade de recursos por tipo e por subscription, oferecendo uma visão resumida do inventário Azure.
 
-## Arquivo
+## Fonte
 
-- `query.kql`: consulta pronta para uso no Azure Resource Graph Explorer.
+- `Resources`
+- `ResourceContainers`, utilizada para obter o nome da subscription
 
-## Informações retornadas
+## Campos retornados
 
-- Subscription Name
-- Subscription ID
-- Tipo de recurso
-- Quantidade total de recursos
-- Quantidade distinta de Resource Groups
-- Quantidade distinta de localizações
+- Nome da subscription
+- ID da subscription
+- Tipo do recurso
+- Quantidade de recursos
 
-## Filtrar por subscriptions
+## Execução
 
-A consulta não possui subscriptions fixas. Para limitar o escopo, adicione a etapa abaixo imediatamente após `Resources`:
+Execute o arquivo `query.kql` no Azure Resource Graph Explorer, Azure CLI com `az graph query` ou Azure PowerShell com `Search-AzGraph`.
+
+### Filtro opcional por subscription
+
+O arquivo `query.kql` contém o bloco abaixo comentado no topo. Para ativá-lo, remova `//` e mantenha o filtro imediatamente após a linha `Resources`:
 
 ```kusto
-| where subscriptionId in (
-    'SUBSCRIPTION-ID-1',
-    'SUBSCRIPTION-ID-2'
-)
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
 ```
 
-Também é possível selecionar as subscriptions diretamente no escopo do Azure Resource Graph Explorer.
+## Limitações
 
-## Observações
+A consulta realiza a contagem por subscription e tipo de recurso. Ela não calcula quantidade distinta de Resource Groups, localizações, SKUs ou estados de provisionamento.
 
-O nome da subscription é obtido dinamicamente na tabela `ResourceContainers`, evitando a manutenção de mapeamentos manuais entre nomes e IDs.
+## Status de validação
+
+- Status: **REVISADA ESTRUTURALMENTE**
+- Data da revisão: **31/07/2026**
+- Evidência: revisão estática do agrupamento e alinhamento da documentação com a projeção atual.
+- Execução no tenant: **não realizada**
