@@ -1,7 +1,7 @@
 // Para filtrar por subscriptions, insira após a linha "Resources":
 // | where subscriptionId in (
-//     "SUBSCRIPTION-ID-1",
-//     "SUBSCRIPTION-ID-2"
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
 // )
 
 Resources
