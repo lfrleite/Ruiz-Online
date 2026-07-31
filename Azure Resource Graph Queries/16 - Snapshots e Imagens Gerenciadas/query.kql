@@ -1,0 +1,55 @@
+Resources
+| where type in~ (
+    'microsoft.compute/snapshots',
+    'microsoft.compute/images'
+)
+| extend
+    TipoArtefato = case(
+        type =~ 'microsoft.compute/snapshots', 'Snapshot',
+        type =~ 'microsoft.compute/images', 'Imagem gerenciada',
+        type
+    ),
+    DataCriacaoUTC = todatetime(properties.timeCreated),
+    OrigemId = coalesce(
+        tostring(properties.creationData.sourceResourceId),
+        tostring(properties.sourceVirtualMachine.id),
+        tostring(properties.storageProfile.osDisk.managedDisk.id),
+        tostring(properties.storageProfile.osDisk.snapshot.id)
+    ),
+    TamanhoGB = tolong(coalesce(
+        properties.diskSizeGB,
+        properties.storageProfile.osDisk.diskSizeGB
+    )),
+    SistemaOperacional = coalesce(
+        tostring(properties.osType),
+        tostring(properties.storageProfile.osDisk.osType)
+    ),
+    GeracaoHyperV = coalesce(
+        tostring(properties.hyperVGeneration),
+        tostring(properties.storageProfile.osDisk.hyperVGeneration)
+    ),
+    EstadoProvisionamento = tostring(properties.provisioningState)
+| extend IdadeDias = iff(isnull(DataCriacaoUTC), long(null), datetime_diff('day', now(), DataCriacaoUTC))
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    TipoArtefato,
+    NomeRecurso = name,
+    Localizacao = location,
+    DataCriacaoUTC,
+    IdadeDias,
+    TamanhoGB,
+    SistemaOperacional,
+    GeracaoHyperV,
+    EstadoProvisionamento,
+    OrigemId,
+    Tags = tostring(tags),
+    ResourceId = id
+| order by NomeSubscription asc, TipoArtefato asc, IdadeDias desc
