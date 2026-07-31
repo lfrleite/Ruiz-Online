@@ -1,0 +1,65 @@
+Resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| extend IdVM = tolower(id)
+| project
+    subscriptionId,
+    resourceGroup,
+    NomeVM = name,
+    Localizacao = location,
+    IdVM,
+    SistemaOperacional = tostring(properties.storageProfile.osDisk.osType),
+    EstadoEnergia = tostring(properties.extended.instanceView.powerState.displayStatus)
+| join kind=leftouter (
+    RecoveryServicesResources
+    | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+    | extend
+        IdVM = tolower(coalesce(
+            tostring(properties.sourceResourceId),
+            tostring(properties.virtualMachineId)
+        )),
+        EstadoProtecao = coalesce(
+            tostring(properties.currentProtectionState),
+            tostring(properties.protectionState)
+        ),
+        SaudeProtecao = tostring(properties.healthStatus),
+        UltimoBackupStatus = tostring(properties.lastBackupStatus),
+        UltimoBackupUTC = todatetime(properties.lastBackupTime),
+        NomePolitica = tostring(properties.policyName),
+        CofreId = extract(@'(?i)(.*?/providers/microsoft.recoveryservices/vaults/[^/]+)', 1, id)
+    | project
+        IdVM,
+        EstadoProtecao,
+        SaudeProtecao,
+        UltimoBackupStatus,
+        UltimoBackupUTC,
+        NomePolitica,
+        CofreId
+) on IdVM
+| project-away IdVM1
+| extend SituacaoBackup = case(
+    isnotempty(EstadoProtecao), 'Protegida',
+    'Sem item de backup identificado'
+)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeVM,
+    Localizacao,
+    SistemaOperacional,
+    EstadoEnergia,
+    SituacaoBackup,
+    EstadoProtecao,
+    SaudeProtecao,
+    UltimoBackupStatus,
+    UltimoBackupUTC,
+    NomePolitica,
+    CofreId,
+    ResourceId = IdVM
+| order by NomeSubscription asc, SituacaoBackup desc, NomeVM asc
