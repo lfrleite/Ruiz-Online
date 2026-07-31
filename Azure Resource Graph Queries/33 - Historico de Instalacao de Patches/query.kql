@@ -1,0 +1,62 @@
+PatchInstallationResources
+| where type endswith '/patchinstallationresults'
+| extend
+    ResourceIdMaquina = tolower(extract(@'(?i)^(.*?)/patchinstallationresults/', 1, id)),
+    StatusInstalacao = tostring(properties.status),
+    SistemaOperacional = tostring(properties.osType),
+    InicioInstalacaoUTC = todatetime(properties.startDateTime),
+    UltimaModificacaoUTC = todatetime(properties.lastModifiedDateTime),
+    PatchesInstalados = toint(properties.installedPatchCount),
+    PatchesFalhos = toint(properties.failedPatchCount),
+    PatchesPendentes = toint(properties.pendingPatchCount),
+    PatchesExcluidos = toint(properties.excludedPatchCount),
+    PatchesNaoSelecionados = toint(properties.notSelectedPatchCount),
+    StatusReinicializacao = tostring(properties.rebootStatus),
+    JanelaExcedida = tostring(properties.maintenanceWindowExceeded),
+    ServicoAtualizacao = tostring(properties.patchServiceUsed),
+    IniciadoPor = tostring(properties.startedBy),
+    MaintenanceRunId = tostring(properties.maintenanceRunId),
+    InstallationActivityId = tostring(properties.installationActivityId),
+    Erros = tostring(properties.errorDetails)
+| join kind=leftouter (
+    Resources
+    | project
+        ResourceIdMaquina = tolower(id),
+        NomeMaquina = name,
+        TipoMaquina = type,
+        resourceGroup,
+        Localizacao = location
+) on ResourceIdMaquina
+| project-away ResourceIdMaquina1
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeMaquina,
+    TipoMaquina,
+    Localizacao,
+    SistemaOperacional,
+    StatusInstalacao,
+    InicioInstalacaoUTC,
+    UltimaModificacaoUTC,
+    PatchesInstalados,
+    PatchesFalhos,
+    PatchesPendentes,
+    PatchesExcluidos,
+    PatchesNaoSelecionados,
+    StatusReinicializacao,
+    JanelaExcedida,
+    ServicoAtualizacao,
+    IniciadoPor,
+    MaintenanceRunId,
+    InstallationActivityId,
+    Erros,
+    ResourceIdMaquina,
+    RegistroInstalacaoId = id
+| order by InicioInstalacaoUTC desc, NomeSubscription asc, NomeMaquina asc
