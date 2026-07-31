@@ -1,0 +1,36 @@
+ResourceChanges
+| where changeType =~ 'Create'
+| where changeAttributes.timestamp between (
+    startofday(datetime(2026-01-01)) ..
+    endofday(datetime(2026-01-01))
+)
+| extend
+    DataCriacaoUTC = todatetime(changeAttributes.timestamp),
+    ResourceId = tostring(targetResourceId),
+    NomeRecurso = extract(@'([^/]+)$', 1, tostring(targetResourceId)),
+    TipoRecurso = tostring(targetResourceType),
+    CriadoPor = tostring(changeAttributes.changedBy),
+    TipoIdentidade = tostring(changeAttributes.changedByType),
+    ClienteOrigem = tostring(changeAttributes.clientType),
+    Operacao = tostring(changeAttributes.operation),
+    CorrelationId = tostring(changeAttributes.correlationId)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    NomeRecurso,
+    TipoRecurso,
+    DataCriacaoUTC,
+    CriadoPor,
+    TipoIdentidade,
+    ClienteOrigem,
+    Operacao,
+    CorrelationId,
+    ResourceId
+| order by DataCriacaoUTC desc
