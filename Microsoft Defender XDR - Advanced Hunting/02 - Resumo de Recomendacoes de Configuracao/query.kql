@@ -7,20 +7,21 @@ DeviceTvmSecureConfigurationAssessment
         ConfigurationName,
         ConfigurationDescription,
         RiskDescription,
-        ConfigurationImpact,
+        ConfigurationImpactKB = ConfigurationImpact,
         RemediationOptions,
-        Benchmarks,
+        ConfigurationBenchmarks,
         Tags
 ) on ConfigurationId
 | project-away ConfigurationId1
+| extend ImpactoConfiguracao = coalesce(ConfigurationImpact, ConfigurationImpactKB)
 | summarize
     DispositivosAplicaveis = dcount(DeviceId),
     DispositivosConformes = dcountif(DeviceId, IsCompliant == true),
     DispositivosNaoConformes = dcountif(DeviceId, IsCompliant == false),
     ExemplosDispositivos = make_set_if(DeviceName, IsCompliant == false, 20)
     by ConfigurationId, ConfigurationName, ConfigurationCategory, ConfigurationSubcategory,
-       ConfigurationDescription, RiskDescription, ConfigurationImpact, RemediationOptions,
-       Benchmarks, Tags
+       ConfigurationDescription, RiskDescription, ImpactoConfiguracao, RemediationOptions,
+       ConfigurationBenchmarks, Tags
 | extend
     PercentualConformidade = iff(
         DispositivosAplicaveis == 0,
@@ -30,5 +31,5 @@ DeviceTvmSecureConfigurationAssessment
     Recomendacao = ConfigurationName,
     Causa = RiskDescription,
     Solucao = RemediationOptions,
-    Documentacao = 'https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessment-table'
-| order by DispositivosNaoConformes desc, ConfigurationImpact desc, ConfigurationName asc
+    Documentacao = 'https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessmentkb-table'
+| order by DispositivosNaoConformes desc, ImpactoConfiguracao desc, ConfigurationName asc

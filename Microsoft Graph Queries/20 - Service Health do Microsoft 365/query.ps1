@@ -3,7 +3,7 @@ param(
 )
 
 . (Join-Path $PSScriptRoot '..\_Common\GraphHelpers.ps1')
-Connect-GraphForScopes -Scopes @('ServiceHealth.Read.All')
+Connect-GraphForScopes -Scopes @('ServiceHealth.Read.All','ServiceMessage.Read.All')
 
 $health = Invoke-GraphPagedRequest -Uri 'https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/healthOverviews'
 $issues = Invoke-GraphPagedRequest -Uri 'https://graph.microsoft.com/v1.0/admin/serviceAnnouncement/issues?$top=999'

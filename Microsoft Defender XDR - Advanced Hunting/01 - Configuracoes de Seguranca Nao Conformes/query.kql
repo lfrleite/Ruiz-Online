@@ -8,19 +8,18 @@ DeviceTvmSecureConfigurationAssessment
         ConfigurationName,
         ConfigurationDescription,
         RiskDescription,
-        ConfigurationImpact,
-        RemediationOptions,
-        Benchmarks,
+        ConfigurationImpactKB = ConfigurationImpact,
+        ConfigurationBenchmarks,
         Tags,
-        MitreTechniques,
-        MitreTactics
+        RemediationOptions
 ) on ConfigurationId
 | project-away ConfigurationId1
 | extend
+    ImpactoConfiguracao = coalesce(ConfigurationImpact, ConfigurationImpactKB),
     Recomendacao = ConfigurationName,
     Causa = RiskDescription,
     Solucao = RemediationOptions,
-    Documentacao = 'https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessment-table'
+    Documentacao = 'https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessmentkb-table'
 | project
     DeviceId,
     DeviceName,
@@ -32,16 +31,14 @@ DeviceTvmSecureConfigurationAssessment
     ConfigurationSubcategory,
     ConfigurationDescription,
     RiskDescription,
-    ConfigurationImpact,
+    ImpactoConfiguracao,
     IsExpectedUserImpact,
     RemediationOptions,
-    Benchmarks,
+    ConfigurationBenchmarks,
     Tags,
-    MitreTechniques,
-    MitreTactics,
     Context,
     Recomendacao,
     Causa,
     Solucao,
     Documentacao
-| order by ConfigurationImpact desc, DeviceName asc, ConfigurationName asc
+| order by ImpactoConfiguracao desc, DeviceName asc, ConfigurationName asc

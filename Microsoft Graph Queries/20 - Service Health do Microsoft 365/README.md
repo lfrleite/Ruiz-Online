@@ -8,7 +8,7 @@ Coletar saúde dos serviços, incidentes, advisories e mensagens administrativas
 
 `/admin/serviceAnnouncement/healthOverviews`, `/issues` e `/messages`.
 
-- Versão da API: **v1.0**, salvo chamadas opcionais documentadas.
+- Versão da API: **v1.0**.
 
 ## Arquivos
 
@@ -17,7 +17,8 @@ Coletar saúde dos serviços, incidentes, advisories e mensagens administrativas
 
 ## Permissões mínimas sugeridas
 
-- `ServiceHealth.Read.All`
+- `ServiceHealth.Read.All` para visão de saúde e issues
+- `ServiceMessage.Read.All` para mensagens do Message Center
 
 A execução delegada também depende das funções administrativas atribuídas ao usuário autenticado. Conceda apenas as permissões necessárias.
 
@@ -44,17 +45,17 @@ Set-ExecutionPolicy -Scope Process Bypass
 ./query.ps1
 ```
 
-Os arquivos exportados podem conter dados pessoais ou identificadores internos. Não publique resultados reais neste repositório.
+Os arquivos exportados podem conter informações específicas do tenant. Não publique resultados reais neste repositório.
 
 ## Limitações
 
-Os dados representam comunicações oficiais do Microsoft 365, não o Azure Service Health. Mensagens podem conter informações específicas do tenant.
+Os dados representam comunicações oficiais do Microsoft 365, não o Azure Service Health. O Message Center utiliza uma permissão diferente da usada para saúde dos serviços.
 
 ## Documentação oficial
 
-https://learn.microsoft.com/graph/api/serviceannouncement-list-healthoverviews
-- Issues: https://learn.microsoft.com/graph/api/serviceannouncement-list-issues
-- Messages: https://learn.microsoft.com/graph/api/serviceannouncement-list-messages
+- https://learn.microsoft.com/graph/api/serviceannouncement-list-healthoverviews
+- https://learn.microsoft.com/graph/api/serviceannouncement-list-issues
+- https://learn.microsoft.com/graph/api/serviceannouncement-list-messages
 
 ## Status de validação
 

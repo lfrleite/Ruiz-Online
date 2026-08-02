@@ -14,7 +14,7 @@ Detalhar configurações de segurança aplicáveis e não conformes por disposit
 - Configuração, categoria e subcategoria
 - Descrição e risco
 - Impacto e possível impacto ao usuário
-- Remediação, benchmarks e MITRE
+- Remediação, benchmarks e tags
 
 ## Recomendações, causas e soluções
 
@@ -28,12 +28,12 @@ Cole o conteúdo de `query.kql` em **Microsoft Defender portal > Hunting > Advan
 
 ## Limitações
 
-Requer Microsoft Defender for Endpoint e dados de Vulnerability Management. Algumas colunas podem depender do licenciamento.
+Requer Microsoft Defender for Endpoint e dados de Vulnerability Management. Algumas colunas podem depender do licenciamento. As tabelas TVM devem ser executadas no Advanced Hunting do Defender XDR; a presença do esquema em outros produtos não garante retorno de dados.
 
 ## Documentação oficial
 
-https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessment-table
-- KB: https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessmentkb-table
+- https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessment-table
+- https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessmentkb-table
 
 ## Status de validação
 
