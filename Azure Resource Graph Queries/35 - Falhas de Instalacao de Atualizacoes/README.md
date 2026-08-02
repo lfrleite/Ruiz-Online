@@ -36,7 +36,7 @@ O arquivo `query.kql` contém o bloco abaixo comentado no topo. Para ativá-lo, 
 
 ## Limitações
 
-A consulta detalha os patches marcados como `Failed`, mas a mensagem consolidada do erro pode estar apenas no registro resumido da instalação. Utilize em conjunto com o item 33.
+A consulta detalha os patches marcados como `Failed`, mas a mensagem consolidada do erro pode estar apenas no registro resumido da instalação. Utilize em conjunto com o item 34.
 
 ## Status de validação
 
