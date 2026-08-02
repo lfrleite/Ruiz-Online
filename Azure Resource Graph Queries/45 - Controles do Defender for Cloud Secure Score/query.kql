@@ -1,0 +1,64 @@
+// Para filtrar por subscriptions, insira após a linha "SecurityResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+SecurityResources
+| where type =~ 'microsoft.security/securescores/securescorecontrols'
+| extend
+    NomeControle = tostring(properties.displayName),
+    IdControle = tostring(properties.definition.name),
+    RecursosSaudaveis = toint(properties.healthyResourceCount),
+    RecursosNaoSaudaveis = toint(properties.unhealthyResourceCount),
+    RecursosNaoAplicaveis = toint(properties.notApplicableResourceCount),
+    ScoreAtual = todouble(properties.score.current),
+    ScoreMaximo = todouble(properties.score.max),
+    Percentual = iff(
+        todouble(properties.score.max) == 0,
+        real(null),
+        round(100.0 * todouble(properties.score.current) / todouble(properties.score.max), 2)
+    ),
+    PontosDisponiveis = round(
+        todouble(properties.score.max) - todouble(properties.score.current),
+        2
+    ),
+    Peso = todouble(properties.weight)
+| extend
+    Recomendacao = iff(
+        RecursosNaoSaudaveis > 0,
+        strcat('Remediar recursos não saudáveis no controle: ', NomeControle),
+        strcat('Manter conformidade do controle: ', NomeControle)
+    ),
+    Causa = iff(
+        RecursosNaoSaudaveis > 0,
+        strcat(tostring(RecursosNaoSaudaveis), ' recurso(s) não saudável(is) identificado(s)'),
+        'Nenhum recurso não saudável retornado para o controle'
+    ),
+    Solucao = 'Abrir as recomendações associadas ao controle, validar recursos impactados, remediação, licenciamento e impacto operacional',
+    Documentacao = 'https://learn.microsoft.com/azure/defender-for-cloud/secure-score-security-controls'
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    NomeControle,
+    IdControle,
+    RecursosSaudaveis,
+    RecursosNaoSaudaveis,
+    RecursosNaoAplicaveis,
+    ScoreAtual,
+    ScoreMaximo,
+    Percentual,
+    PontosDisponiveis,
+    Peso,
+    Recomendacao,
+    Causa,
+    Solucao,
+    Documentacao,
+    ResourceId = id
+| order by PontosDisponiveis desc, RecursosNaoSaudaveis desc, NomeSubscription asc, NomeControle asc

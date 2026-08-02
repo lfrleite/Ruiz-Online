@@ -95,9 +95,13 @@ Cada README de consulta deve conter:
 | 41 | Secure Boot, vTPM e Trusted Launch | Resources | Configuração ARM das VMs |
 | 42 | Inventário de Azure Virtual Desktop | Resources | Host Pools, Workspaces, App Groups e Scaling Plans |
 | 43 | Session Hosts do AVD e Vínculo com VMs | Desktop Virtualization API + ARG | Solução híbrida, sem query.kql |
+| 44 | Defender for Cloud Secure Score por Subscription | SecurityResources | Score clássico do Defender for Cloud |
+| 45 | Controles do Defender for Cloud Secure Score | SecurityResources | Recursos, pontos e controles |
 
 ## Observações
 
 A sequência numérica foi normalizada para manter um único item por número, preservando os conteúdos funcionais das consultas e documentações.
+
+Os itens 44 e 45 representam o Secure Score clássico do Defender for Cloud disponível no Azure Resource Graph. O novo Cloud Secure Score baseado em risco, exibido no portal Microsoft Defender, utiliza outro modelo e não deve ser comparado diretamente.
 
 As consultas estão classificadas como **REVISADAS ESTRUTURALMENTE** quando houve apenas revisão estática. Nenhuma deve ser apresentada como testada no tenant até que exista evidência real de execução e conferência dos resultados.

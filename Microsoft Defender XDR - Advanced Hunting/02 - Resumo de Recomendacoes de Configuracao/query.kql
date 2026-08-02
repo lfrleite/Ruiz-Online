@@ -1,0 +1,34 @@
+DeviceTvmSecureConfigurationAssessment
+| where IsApplicable == true
+| join kind=leftouter (
+    DeviceTvmSecureConfigurationAssessmentKB
+    | project
+        ConfigurationId,
+        ConfigurationName,
+        ConfigurationDescription,
+        RiskDescription,
+        ConfigurationImpact,
+        RemediationOptions,
+        Benchmarks,
+        Tags
+) on ConfigurationId
+| project-away ConfigurationId1
+| summarize
+    DispositivosAplicaveis = dcount(DeviceId),
+    DispositivosConformes = dcountif(DeviceId, IsCompliant == true),
+    DispositivosNaoConformes = dcountif(DeviceId, IsCompliant == false),
+    ExemplosDispositivos = make_set_if(DeviceName, IsCompliant == false, 20)
+    by ConfigurationId, ConfigurationName, ConfigurationCategory, ConfigurationSubcategory,
+       ConfigurationDescription, RiskDescription, ConfigurationImpact, RemediationOptions,
+       Benchmarks, Tags
+| extend
+    PercentualConformidade = iff(
+        DispositivosAplicaveis == 0,
+        real(null),
+        round(100.0 * todouble(DispositivosConformes) / todouble(DispositivosAplicaveis), 2)
+    ),
+    Recomendacao = ConfigurationName,
+    Causa = RiskDescription,
+    Solucao = RemediationOptions,
+    Documentacao = 'https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessment-table'
+| order by DispositivosNaoConformes desc, ConfigurationImpact desc, ConfigurationName asc

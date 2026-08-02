@@ -1,0 +1,53 @@
+DeviceTvmSoftwareVulnerabilities
+| join kind=leftouter (
+    DeviceTvmSoftwareVulnerabilitiesKB
+    | project
+        CveId,
+        CvssScore,
+        IsExploitAvailable,
+        IsZeroDay,
+        PublishedDate,
+        LastModifiedTime,
+        VulnerabilityDescription
+) on CveId
+| project-away CveId1
+| extend
+    Recomendacao = strcat('Corrigir vulnerabilidade ', CveId, ' em ', SoftwareName),
+    Causa = VulnerabilityDescription,
+    Solucao = iff(
+        isnotempty(RecommendedSecurityUpdate),
+        strcat('Aplicar atualização recomendada: ', RecommendedSecurityUpdate),
+        'Validar atualização, mitigação ou remoção do software vulnerável.'
+    ),
+    Prioridade = case(
+        IsZeroDay == true, 'Critica - Zero Day',
+        IsExploitAvailable == true and VulnerabilitySeverityLevel =~ 'Critical', 'Critica - Exploit disponivel',
+        VulnerabilitySeverityLevel =~ 'Critical', 'Critica',
+        VulnerabilitySeverityLevel =~ 'High', 'Alta',
+        VulnerabilitySeverityLevel
+    ),
+    Documentacao = 'https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsoftwarevulnerabilities-table'
+| project
+    DeviceId,
+    DeviceName,
+    OSPlatform,
+    OSVersion,
+    SoftwareVendor,
+    SoftwareName,
+    SoftwareVersion,
+    CveId,
+    VulnerabilitySeverityLevel,
+    CvssScore,
+    IsExploitAvailable,
+    IsZeroDay,
+    RecommendedSecurityUpdate,
+    RecommendedSecurityUpdateId,
+    PublishedDate,
+    LastModifiedTime,
+    VulnerabilityDescription,
+    Prioridade,
+    Recomendacao,
+    Causa,
+    Solucao,
+    Documentacao
+| order by Prioridade asc, CvssScore desc, DeviceName asc, CveId asc

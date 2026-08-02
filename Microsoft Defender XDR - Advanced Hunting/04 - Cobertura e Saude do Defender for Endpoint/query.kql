@@ -1,0 +1,39 @@
+DeviceInfo
+| summarize arg_max(Timestamp, *) by DeviceId
+| extend
+    Recomendacao = case(
+        OnboardingStatus !~ 'Onboarded', 'Prioridade: concluir onboarding do dispositivo.',
+        SensorHealthState !~ 'Active', 'Investigar sensor do Defender for Endpoint.',
+        isempty(ClientVersion), 'Revisar versão do cliente.',
+        IsInternetFacing == true, 'Revisar exposição e vulnerabilidades do dispositivo.',
+        'Sem alerta inicial.'
+    ),
+    Causa = strcat(
+        'Onboarding=', tostring(OnboardingStatus),
+        '; Sensor=', tostring(SensorHealthState),
+        '; InternetFacing=', tostring(IsInternetFacing)
+    ),
+    Solucao = 'Validar onboarding, conectividade do sensor, versão do agente, grupo de máquinas e políticas aplicadas.',
+    Documentacao = 'https://learn.microsoft.com/defender-xdr/advanced-hunting-deviceinfo-table'
+| project
+    Timestamp,
+    DeviceId,
+    DeviceName,
+    OSPlatform,
+    OSDistribution,
+    OSVersion,
+    DeviceType,
+    DeviceCategory,
+    OnboardingStatus,
+    SensorHealthState,
+    ClientVersion,
+    MachineGroup,
+    PublicIP,
+    IsInternetFacing,
+    ExposureLevel,
+    AssetValue,
+    Recomendacao,
+    Causa,
+    Solucao,
+    Documentacao
+| order by SensorHealthState asc, OnboardingStatus asc, DeviceName asc

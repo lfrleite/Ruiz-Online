@@ -1,0 +1,47 @@
+DeviceTvmSecureConfigurationAssessment
+| where IsApplicable == true
+| where IsCompliant == false
+| join kind=leftouter (
+    DeviceTvmSecureConfigurationAssessmentKB
+    | project
+        ConfigurationId,
+        ConfigurationName,
+        ConfigurationDescription,
+        RiskDescription,
+        ConfigurationImpact,
+        RemediationOptions,
+        Benchmarks,
+        Tags,
+        MitreTechniques,
+        MitreTactics
+) on ConfigurationId
+| project-away ConfigurationId1
+| extend
+    Recomendacao = ConfigurationName,
+    Causa = RiskDescription,
+    Solucao = RemediationOptions,
+    Documentacao = 'https://learn.microsoft.com/defender-xdr/advanced-hunting-devicetvmsecureconfigurationassessment-table'
+| project
+    DeviceId,
+    DeviceName,
+    OSPlatform,
+    OSVersion,
+    ConfigurationId,
+    ConfigurationName,
+    ConfigurationCategory,
+    ConfigurationSubcategory,
+    ConfigurationDescription,
+    RiskDescription,
+    ConfigurationImpact,
+    IsExpectedUserImpact,
+    RemediationOptions,
+    Benchmarks,
+    Tags,
+    MitreTechniques,
+    MitreTactics,
+    Context,
+    Recomendacao,
+    Causa,
+    Solucao,
+    Documentacao
+| order by ConfigurationImpact desc, DeviceName asc, ConfigurationName asc
