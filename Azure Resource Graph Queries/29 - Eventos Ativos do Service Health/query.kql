@@ -3,7 +3,6 @@
 //     'SUBSCRIPTION-ID-1',
 //     'SUBSCRIPTION-ID-2'
 // )
-
 ServiceHealthResources
 | where type =~ "microsoft.resourcehealth/events"
 | extend
@@ -19,15 +18,113 @@ ServiceHealthResources
     UltimaAtualizacaoUTC = tostring(properties.LastUpdateTime),
     ServicosImpactados = tostring(properties.Impact),
     CabecalhoComunicacao = tostring(properties.Header),
-    Plataforma = tostring(properties.PlatformInitiated),
-    Comunicado = tostring(properties.CommunicationId)
+    CommunicationId = tostring(properties.CommunicationId)
 | where StatusEvento =~ "Active"
 | extend
+    TituloLower = tolower(Titulo),
+    ResumoLower = tolower(Resumo),
+    TextoEventoLower = tolower(strcat(Titulo, " ", Resumo, " ", CabecalhoComunicacao))
+| extend
+    TipoAcaoPublicada = case(
+        TituloLower contains "action required", "Acao requerida",
+        TituloLower contains "action recommended", "Acao recomendada",
+        TituloLower contains "active:action recommended", "Acao recomendada",
+        TituloLower contains "informational / action required", "Acao requerida",
+        "Nao publicada no titulo"
+    )
+| extend
+    AcaoOriginal = case(
+        TipoAcaoPublicada != "Nao publicada no titulo", Titulo,
+        ""
+    )
+| extend
+    AcaoTraduzida = case(
+        TituloLower contains "restart affected azure virtual machines to activate a security update",
+            "Reiniciar as maquinas virtuais do Azure afetadas para ativar uma atualizacao de seguranca.",
+        TituloLower contains "restart affected azure virtual machines",
+            "Reiniciar as maquinas virtuais do Azure afetadas.",
+        TituloLower contains "planned maintenance for azure will impact virtual machines",
+            "Validar as maquinas virtuais impactadas pela manutencao planejada e preparar janela operacional se necessario.",
+        TituloLower contains "verify your os compatibility" and TituloLower contains "mana",
+            "Validar a compatibilidade do sistema operacional com Microsoft Azure Network Adapter, MANA, para as VMs afetadas.",
+        TituloLower contains "migrate your legacy azure general-purpose v1 account",
+            "Migrar a conta de armazenamento legada General Purpose v1 para General Purpose v2.",
+        TituloLower contains "migrate your legacy azure blob storage account",
+            "Migrar a conta legada de Blob Storage para General Purpose v2.",
+        TituloLower contains "standard sku public ip address",
+            "Migrar o Public IP afetado para Standard SKU antes da data limite.",
+        TituloLower contains "upgrade azure database for mysql 8.0",
+            "Atualizar o Azure Database for MySQL 8.0 antes do inicio da cobranca de suporte estendido.",
+        TituloLower contains "extended support charges for mysql 8.0",
+            "Revisar servidores MySQL 8.0 impactados e planejar atualizacao ou aceite de suporte estendido.",
+        TituloLower contains "azure sql rest api version 2014-04-01",
+            "Atualizar automacoes e integracoes que usam a Azure SQL REST API 2014-04-01.",
+        TituloLower contains "secure boot" and TituloLower contains "certificates",
+            "Atualizar ou validar os certificados de Secure Boot das maquinas virtuais afetadas.",
+        TituloLower contains "tls 1.2",
+            "Garantir que recursos, aplicacoes e integracoes afetadas estejam usando TLS 1.2 ou superior.",
+        TituloLower contains "service bus sdks",
+            "Migrar aplicacoes e integracoes que usam SDKs antigos do Azure Service Bus.",
+        TituloLower contains "dcr-based custom log ingestion",
+            "Migrar a ingestao de logs customizados para Data Collection Rules, DCR.",
+        TituloLower contains "azure monitor action groups",
+            "Revisar os Action Groups do Azure Monitor e atender ao novo requisito de verificacao de email.",
+        TituloLower contains "databricks entitlement",
+            "Atualizar automacoes relacionadas a entitlements do Azure Databricks.",
+        TituloLower contains "retirement" or TituloLower contains "retired" or TituloLower contains "end of support",
+            "Planejar migracao, atualizacao ou substituicao antes da data de retirement ou fim de suporte.",
+        ResumoLower contains "no customer action is required",
+            "Nenhuma acao do cliente e requerida, conforme informado pela Microsoft.",
+        ResumoLower contains "brief drop in connectivity",
+            "Validar recursos impactados e preparar tolerancia para breve queda de conectividade durante a manutencao.",
+        ResumoLower contains "workspace deletion operation may fail",
+            "Validar exclusoes de workspaces Azure Databricks Classic com Firewall Enabled DBFS e avaliar a exclusao permanente da storage account associada.",
+        ResumoLower contains "impacted resources",
+            "Consultar a guia Impacted Resources para identificar os recursos afetados e executar a orientacao especifica do alerta.",
+        TipoAcaoPublicada != "Nao publicada no titulo",
+            AcaoOriginal,
+        "Acao especifica nao publicada no titulo ou resumo retornado pelo ARG. Abrir o alerta no Service Health para validar o detalhe."
+    )
+| extend
+    PassosRecomendados = case(
+        TituloLower contains "restart affected azure virtual machines",
+            "1. Abrir o alerta. 2. Acessar Impacted Resources. 3. Identificar as VMs afetadas. 4. Agendar janela de manutencao. 5. Reiniciar as VMs afetadas. 6. Validar aplicacoes e workloads apos o reinicio.",
+        TituloLower contains "verify your os compatibility" and TituloLower contains "mana",
+            "1. Identificar as VMs afetadas. 2. Validar sistema operacional, kernel e drivers. 3. Confirmar compatibilidade com MANA. 4. Atualizar componentes quando necessario. 5. Validar conectividade.",
+        TituloLower contains "general-purpose v1" or TituloLower contains "blob storage account",
+            "1. Identificar contas afetadas. 2. Validar dependencias. 3. Planejar migracao para General Purpose v2. 4. Executar em janela controlada. 5. Validar acesso, performance e custos.",
+        TituloLower contains "standard sku public ip address",
+            "1. Identificar Public IPs afetados. 2. Validar recurso associado. 3. Planejar migracao para Standard SKU. 4. Executar alteracao. 5. Validar conectividade.",
+        TituloLower contains "mysql 8.0",
+            "1. Identificar servidores MySQL 8.0 afetados. 2. Validar compatibilidade. 3. Planejar atualizacao ou suporte estendido. 4. Testar aplicacoes. 5. Executar antes da data limite.",
+        TituloLower contains "tls 1.2",
+            "1. Identificar recursos afetados. 2. Validar versao de TLS. 3. Atualizar clientes, runtimes ou configuracoes. 4. Testar conectividade.",
+        ResumoLower contains "no customer action is required",
+            "1. Registrar o comunicado. 2. Monitorar ate conclusao. 3. Nao executar alteracoes manuais, salvo nova orientacao da Microsoft.",
+        ResumoLower contains "brief drop in connectivity",
+            "1. Consultar Impacted Resources. 2. Identificar recursos e janela especifica. 3. Comunicar donos das aplicacoes. 4. Garantir retry e monitoramento. 5. Validar conectividade apos a janela.",
+        "1. Abrir o alerta no Service Health. 2. Consultar Impacted Resources. 3. Identificar recursos afetados. 4. Executar a orientacao indicada pela Microsoft."
+    )
+| extend
+    ConsequenciaSeNaoAgir = case(
+        TituloLower contains "restart affected azure virtual machines",
+            "Enquanto as VMs afetadas nao forem reiniciadas, a atualizacao ou protecao indicada pode nao estar ativa.",
+        TituloLower contains "tls 1.2",
+            "Integracoes que nao atenderem ao requisito de TLS podem falhar apos a mudanca.",
+        TituloLower contains "retirement" or TituloLower contains "retired" or TituloLower contains "end of support",
+            "O servico ou funcionalidade pode perder suporte, falhar ou exigir migracao emergencial apos a data limite.",
+        ResumoLower contains "no customer action is required",
+            "Nenhuma consequencia operacional esperada por falta de acao do cliente, conforme o alerta.",
+        ResumoLower contains "brief drop in connectivity",
+            "Durante a manutencao, pode ocorrer breve queda de conectividade. Aplicacoes sensiveis podem registrar falhas transitorias se nao houver tolerancia.",
+        "Validar a consequencia especifica no detalhe do alerta."
+    )
+| extend
     TipoEventoNormalizado = case(
-        TipoEvento =~ "ServiceIssue", "Service Issue",
-        TipoEvento =~ "PlannedMaintenance", "Planned Maintenance",
-        TipoEvento =~ "HealthAdvisory", "Health Advisory",
-        TipoEvento =~ "SecurityAdvisory", "Security Advisory",
+        TipoEvento =~ "ServiceIssue", "Incidente de Servico",
+        TipoEvento =~ "PlannedMaintenance", "Manutencao Planejada",
+        TipoEvento =~ "HealthAdvisory", "Aviso de Saude",
+        TipoEvento =~ "SecurityAdvisory", "Aviso de Seguranca",
         isempty(TipoEvento), "Nao informado",
         TipoEvento
     )
@@ -40,69 +137,51 @@ ServiceHealthResources
         NivelEvento
     )
 | extend
-    PrioridadeNormalizada = case(
-        Prioridade =~ "High", "Alta",
-        Prioridade =~ "Medium", "Media",
-        Prioridade =~ "Low", "Baixa",
-        isempty(Prioridade), "Nao informado",
-        Prioridade
-    )
-| extend
     ClassificacaoAcao = case(
-        TipoEvento =~ "ServiceIssue" and NivelEvento =~ "Critical", "Acao imediata: incidente critico ativo",
-        TipoEvento =~ "ServiceIssue", "Monitorar e comunicar impacto",
-        TipoEvento =~ "PlannedMaintenance", "Planejar janela e validar impacto",
-        TipoEvento =~ "HealthAdvisory", "Avaliar recomendacao de saude",
-        TipoEvento =~ "SecurityAdvisory", "Prioridade: revisar orientacao de seguranca",
+        TipoAcaoPublicada == "Acao requerida", "Acao requerida publicada pela Microsoft",
+        TipoAcaoPublicada == "Acao recomendada", "Acao recomendada publicada pela Microsoft",
+        ResumoLower contains "no customer action is required", "Sem acao requerida do cliente",
+        TipoEvento =~ "PlannedMaintenance", "Manutencao planejada: validar impacto",
+        TipoEvento =~ "ServiceIssue", "Incidente: monitorar impacto",
+        TipoEvento =~ "SecurityAdvisory", "Aviso de seguranca: revisar orientacao",
         "Revisar evento"
     )
 | extend
-    StatusMitigacao = case(
-        isempty(MitigacaoEstimadaUTC), "Sem mitigacao estimada informada",
-        "Mitigacao estimada informada"
+    OrdemAcao = case(
+        ClassificacaoAcao contains "Acao requerida", 1,
+        ClassificacaoAcao contains "Acao recomendada", 2,
+        ClassificacaoAcao contains "Sem acao", 4,
+        3
     )
 | extend
-    StatusAtualizacao = case(
-        isempty(UltimaAtualizacaoUTC), "Sem ultima atualizacao informada",
-        "Com ultima atualizacao informada"
-    )
-| extend
-    TemResumo = case(
-        isempty(Resumo), "NAO",
-        "SIM"
-    ),
-    TemCabecalhoComunicacao = case(
-        isempty(CabecalhoComunicacao), "NAO",
-        "SIM"
-    ),
-    TemServicosImpactados = case(
-        isempty(ServicosImpactados) or ServicosImpactados == "[]", "NAO",
-        "SIM"
-    )
+    LinkAlertaApp = strcat("https://app.azure.com/h/", TrackingId),
+    LinkAlertaPortal = strcat("https://portal.azure.com/#resource", id),
+    LinkServiceHealth = "https://portal.azure.com/#view/Microsoft_Azure_Health/AzureHealthBrowseBlade/~/serviceIssues"
+| order by OrdemAcao asc, InicioImpactoUTC desc, TrackingId asc, subscriptionId asc
 | project
     subscriptionId,
+    TrackingId,
+    ClassificacaoAcao,
+    TipoAcaoPublicada,
+    Titulo,
+    AcaoOriginal,
+    AcaoTraduzida,
+    PassosRecomendados,
+    ConsequenciaSeNaoAgir,
     TipoEventoNormalizado,
     TipoEvento,
     NivelNormalizado,
     NivelEvento,
-    PrioridadeNormalizada,
     Prioridade,
     StatusEvento,
-    ClassificacaoAcao,
-    Titulo,
     Resumo,
-    TrackingId,
+    ServicosImpactados,
+    CabecalhoComunicacao,
     InicioImpactoUTC,
     MitigacaoEstimadaUTC,
-    StatusMitigacao,
     UltimaAtualizacaoUTC,
-    StatusAtualizacao,
-    TemServicosImpactados,
-    ServicosImpactados,
-    TemResumo,
-    TemCabecalhoComunicacao,
-    CabecalhoComunicacao,
-    Plataforma,
-    Comunicado,
+    LinkAlertaApp,
+    LinkAlertaPortal,
+    LinkServiceHealth,
+    CommunicationId,
     ResourceId = id
-| order by InicioImpactoUTC desc, PrioridadeNormalizada asc, TipoEventoNormalizado asc, subscriptionId asc
