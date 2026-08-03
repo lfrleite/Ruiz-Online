@@ -5,39 +5,104 @@
 // )
 
 ServiceHealthResources
-| where type =~ 'microsoft.resourcehealth/events'
+| where type =~ "microsoft.resourcehealth/events"
 | extend
-    StatusEvento = coalesce(tostring(properties.Status), tostring(properties.status)),
-    TipoEvento = coalesce(tostring(properties.EventType), tostring(properties.eventType)),
-    NivelEvento = coalesce(tostring(properties.EventLevel), tostring(properties.eventLevel), tostring(properties.Level)),
-    Titulo = coalesce(tostring(properties.Title), tostring(properties.title)),
-    Resumo = coalesce(tostring(properties.Summary), tostring(properties.summary)),
-    TrackingId = coalesce(tostring(properties.TrackingId), tostring(properties.trackingId), name),
-    InicioImpactoUTC = todatetime(coalesce(properties.ImpactStartTime, properties.impactStartTime)),
-    MitigacaoEstimadaUTC = todatetime(coalesce(properties.ImpactMitigationTime, properties.impactMitigationTime)),
-    UltimaAtualizacaoUTC = todatetime(coalesce(properties.LastUpdateTime, properties.lastUpdateTime)),
-    ServicosImpactados = tostring(coalesce(properties.Impact, properties.impact, properties.impactedServices)),
-    CabecalhoComunicacao = tostring(coalesce(properties.Header, properties.header))
-| where StatusEvento =~ 'Active'
-| join kind=leftouter (
-    ResourceContainers
-    | where type =~ 'microsoft.resources/subscriptions'
-    | project subscriptionId, NomeSubscription = name
-) on subscriptionId
-| project-away subscriptionId1
+    StatusEvento = tostring(properties.Status),
+    TipoEvento = tostring(properties.EventType),
+    NivelEvento = tostring(properties.EventLevel),
+    Prioridade = tostring(properties.Priority),
+    Titulo = tostring(properties.Title),
+    Resumo = tostring(properties.Summary),
+    TrackingId = tostring(properties.TrackingId),
+    InicioImpactoUTC = tostring(properties.ImpactStartTime),
+    MitigacaoEstimadaUTC = tostring(properties.ImpactMitigationTime),
+    UltimaAtualizacaoUTC = tostring(properties.LastUpdateTime),
+    ServicosImpactados = tostring(properties.Impact),
+    CabecalhoComunicacao = tostring(properties.Header),
+    Plataforma = tostring(properties.PlatformInitiated),
+    Comunicado = tostring(properties.CommunicationId)
+| where StatusEvento =~ "Active"
+| extend
+    TipoEventoNormalizado = case(
+        TipoEvento =~ "ServiceIssue", "Service Issue",
+        TipoEvento =~ "PlannedMaintenance", "Planned Maintenance",
+        TipoEvento =~ "HealthAdvisory", "Health Advisory",
+        TipoEvento =~ "SecurityAdvisory", "Security Advisory",
+        isempty(TipoEvento), "Nao informado",
+        TipoEvento
+    )
+| extend
+    NivelNormalizado = case(
+        NivelEvento =~ "Critical", "Critico",
+        NivelEvento =~ "Warning", "Alerta",
+        NivelEvento =~ "Informational", "Informativo",
+        isempty(NivelEvento), "Nao informado",
+        NivelEvento
+    )
+| extend
+    PrioridadeNormalizada = case(
+        Prioridade =~ "High", "Alta",
+        Prioridade =~ "Medium", "Media",
+        Prioridade =~ "Low", "Baixa",
+        isempty(Prioridade), "Nao informado",
+        Prioridade
+    )
+| extend
+    ClassificacaoAcao = case(
+        TipoEvento =~ "ServiceIssue" and NivelEvento =~ "Critical", "Acao imediata: incidente critico ativo",
+        TipoEvento =~ "ServiceIssue", "Monitorar e comunicar impacto",
+        TipoEvento =~ "PlannedMaintenance", "Planejar janela e validar impacto",
+        TipoEvento =~ "HealthAdvisory", "Avaliar recomendacao de saude",
+        TipoEvento =~ "SecurityAdvisory", "Prioridade: revisar orientacao de seguranca",
+        "Revisar evento"
+    )
+| extend
+    StatusMitigacao = case(
+        isempty(MitigacaoEstimadaUTC), "Sem mitigacao estimada informada",
+        "Mitigacao estimada informada"
+    )
+| extend
+    StatusAtualizacao = case(
+        isempty(UltimaAtualizacaoUTC), "Sem ultima atualizacao informada",
+        "Com ultima atualizacao informada"
+    )
+| extend
+    TemResumo = case(
+        isempty(Resumo), "NAO",
+        "SIM"
+    ),
+    TemCabecalhoComunicacao = case(
+        isempty(CabecalhoComunicacao), "NAO",
+        "SIM"
+    ),
+    TemServicosImpactados = case(
+        isempty(ServicosImpactados) or ServicosImpactados == "[]", "NAO",
+        "SIM"
+    )
 | project
-    NomeSubscription,
     subscriptionId,
+    TipoEventoNormalizado,
     TipoEvento,
+    NivelNormalizado,
     NivelEvento,
+    PrioridadeNormalizada,
+    Prioridade,
     StatusEvento,
+    ClassificacaoAcao,
     Titulo,
     Resumo,
     TrackingId,
     InicioImpactoUTC,
     MitigacaoEstimadaUTC,
+    StatusMitigacao,
     UltimaAtualizacaoUTC,
+    StatusAtualizacao,
+    TemServicosImpactados,
     ServicosImpactados,
+    TemResumo,
+    TemCabecalhoComunicacao,
     CabecalhoComunicacao,
+    Plataforma,
+    Comunicado,
     ResourceId = id
-| order by InicioImpactoUTC desc, NomeSubscription asc, TipoEvento asc
+| order by InicioImpactoUTC desc, PrioridadeNormalizada asc, TipoEventoNormalizado asc, subscriptionId asc
