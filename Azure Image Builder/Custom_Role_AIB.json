@@ -1,0 +1,24 @@
+{
+  "properties": {
+    "roleName": "role-aib-lab-image-builder",
+    "description": "Permissões necessárias para o Azure VM Image Builder publicar imagens na Azure Compute Gallery usando VNet dedicada.",
+    "assignableScopes": [
+      "/providers/Microsoft.Management/managementGroups/<MANAGEMENT_GROUP_ID>"
+    ],
+    "permissions": [
+      {
+        "actions": [
+          "Microsoft.Compute/galleries/read",
+          "Microsoft.Compute/galleries/images/read",
+          "Microsoft.Compute/galleries/images/versions/read",
+          "Microsoft.Compute/galleries/images/versions/write",
+          "Microsoft.Network/virtualNetworks/read",
+          "Microsoft.Network/virtualNetworks/subnets/join/action"
+        ],
+        "notActions": [],
+        "dataActions": [],
+        "notDataActions": []
+      }
+    ]
+  }
+}
