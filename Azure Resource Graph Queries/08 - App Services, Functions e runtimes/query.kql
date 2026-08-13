@@ -6,303 +6,151 @@
 
 Resources
 | where type in~ (
-    "microsoft.web/sites",
-    "microsoft.web/sites/slots"
+    'microsoft.web/sites',
+    'microsoft.web/sites/slots'
 )
 | extend
-    resourceId = tostring(id),
-    resourceType = tostring(type),
-    appNameCompleto = tostring(name),
-    appKind = tostring(kind),
-    resourceLocation = tostring(location),
-    appServicePlanId = tolower(tostring(properties.serverFarmId))
+    ResourceId = tostring(id),
+    ResourceType = tostring(type),
+    NomeCompleto = tostring(name),
+    AppKind = tostring(kind),
+    AppServicePlanId = tolower(tostring(properties.serverFarmId))
 | extend
-    appName = case(
-        resourceType =~ "microsoft.web/sites/slots", tostring(split(appNameCompleto, "/")[0]),
-        appNameCompleto
+    AppName = case(
+        ResourceType =~ 'microsoft.web/sites/slots', tostring(split(NomeCompleto, '/')[0]),
+        NomeCompleto
     ),
-    slotName = case(
-        resourceType =~ "microsoft.web/sites/slots", tostring(split(appNameCompleto, "/")[1]),
-        ""
+    SlotName = case(
+        ResourceType =~ 'microsoft.web/sites/slots', tostring(split(NomeCompleto, '/')[1]),
+        ''
     ),
-    tipoRecurso = case(
-        resourceType =~ "microsoft.web/sites/slots", "Slot",
-        appKind has "functionapp", "Function App",
-        appKind has "workflowapp", "Logic App Standard",
-        appKind has "api", "API App",
-        "App Service"
-    )
+    TipoWorkload = case(
+        ResourceType =~ 'microsoft.web/sites/slots', 'Slot',
+        AppKind has 'functionapp', 'Function App',
+        AppKind has 'workflowapp', 'Logic App Standard',
+        AppKind has 'api', 'API App',
+        'App Service'
+    ),
+    ConfigResourceId = tolower(strcat(ResourceId, '/config/web'))
 | join kind=leftouter (
     ResourceContainers
-    | where type =~ "microsoft.resources/subscriptions"
-    | project subscriptionId, subscriptionName = name
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
 ) on subscriptionId
 | project-away subscriptionId1
 | join kind=leftouter (
     Resources
-    | where type =~ "microsoft.web/serverfarms"
-    | extend appServicePlanId = tolower(id)
+    | where type =~ 'microsoft.web/serverfarms'
+    | extend AppServicePlanId = tolower(id)
     | project
-        appServicePlanId,
-        appServicePlanName = name,
-        appServicePlanResourceGroup = resourceGroup,
-        appServicePlanLocation = location,
-        appServicePlanSkuName = tostring(sku.name),
-        appServicePlanSkuTier = tostring(sku.tier),
-        appServicePlanSkuSize = tostring(sku.size),
-        appServicePlanSkuCapacity = tostring(sku.capacity),
-        appServicePlanKind = tostring(kind),
-        appServicePlanReservedLinux = tostring(properties.reserved),
-        appServicePlanZoneRedundant = tostring(properties.zoneRedundant),
-        appServicePlanNumberOfWorkers = tostring(properties.numberOfWorkers),
-        appServicePlanMaximumElasticWorkerCount = tostring(properties.maximumElasticWorkerCount),
-        appServicePlanPerSiteScaling = tostring(properties.perSiteScaling),
-        appServicePlanElasticScaleEnabled = tostring(properties.elasticScaleEnabled),
-        appServicePlanHostingEnvironmentId = tostring(properties.hostingEnvironmentProfile.id),
-        appServicePlanHostingEnvironmentName = tostring(properties.hostingEnvironmentProfile.name)
-) on appServicePlanId
-| project-away appServicePlanId1
-| extend
-    createdAtUTC = todatetime(systemData.createdAt),
-    createdAtGMT3 = todatetime(systemData.createdAt) - 3h,
-    lastModifiedUTC = todatetime(properties.lastModifiedTimeUtc),
-    lastModifiedGMT3 = todatetime(properties.lastModifiedTimeUtc) - 3h
-| extend
-    state = tostring(properties.state),
-    enabled = tostring(properties.enabled),
-    availabilityState = tostring(properties.availabilityState),
-    usageState = tostring(properties.usageState),
-    hostNamesDisabled = tostring(properties.hostNamesDisabled),
-    defaultHostName = tostring(properties.defaultHostName),
-    outboundIpAddresses = tostring(properties.outboundIpAddresses),
-    possibleOutboundIpAddresses = tostring(properties.possibleOutboundIpAddresses)
-| extend
-    httpsOnly = tostring(properties.httpsOnly),
-    publicNetworkAccess = tostring(properties.publicNetworkAccess),
-    clientAffinityEnabled = tostring(properties.clientAffinityEnabled),
-    clientCertEnabled = tostring(properties.clientCertEnabled),
-    clientCertMode = tostring(properties.clientCertMode)
-| extend
-    vnetSubnetId = coalesce(
-        tostring(properties.virtualNetworkSubnetId),
-        tostring(properties.siteConfig.virtualNetworkSubnetId)
-    ),
-    vnetRouteAllEnabled = tostring(properties.siteConfig.vnetRouteAllEnabled)
-| extend
-    linuxFxVersion = tostring(properties.siteConfig.linuxFxVersion),
-    windowsFxVersion = tostring(properties.siteConfig.windowsFxVersion),
-    netFrameworkVersion = tostring(properties.siteConfig.netFrameworkVersion),
-    javaVersion = tostring(properties.siteConfig.javaVersion),
-    javaContainer = tostring(properties.siteConfig.javaContainer),
-    javaContainerVersion = tostring(properties.siteConfig.javaContainerVersion),
-    phpVersion = tostring(properties.siteConfig.phpVersion),
-    pythonVersion = tostring(properties.siteConfig.pythonVersion),
-    nodeVersion = tostring(properties.siteConfig.nodeVersion),
-    powerShellVersion = tostring(properties.siteConfig.powerShellVersion)
-| extend
-    runtimePrincipal = case(
-        isnotempty(linuxFxVersion), linuxFxVersion,
-        isnotempty(windowsFxVersion), windowsFxVersion,
-        isnotempty(javaVersion), strcat("JAVA|", javaVersion),
-        isnotempty(pythonVersion), strcat("PYTHON|", pythonVersion),
-        isnotempty(nodeVersion), strcat("NODE|", nodeVersion),
-        isnotempty(phpVersion), strcat("PHP|", phpVersion),
-        isnotempty(powerShellVersion), strcat("POWERSHELL|", powerShellVersion),
-        isnotempty(netFrameworkVersion), strcat("DOTNET_FRAMEWORK|", netFrameworkVersion),
-        "Nao identificado"
+        AppServicePlanId,
+        AppServicePlanName = name,
+        AppServicePlanResourceGroup = resourceGroup,
+        AppServicePlanLocation = location,
+        AppServicePlanSkuName = tostring(sku.name),
+        AppServicePlanSkuTier = tostring(sku.tier),
+        AppServicePlanSkuSize = tostring(sku.size),
+        AppServicePlanSkuCapacity = tostring(sku.capacity),
+        AppServicePlanKind = tostring(kind),
+        AppServicePlanReservedLinux = tostring(properties.reserved),
+        AppServicePlanZoneRedundant = tostring(properties.zoneRedundant)
+) on AppServicePlanId
+| project-away AppServicePlanId1
+| join kind=leftouter (
+    AppServiceResources
+    | where type in~ (
+        'microsoft.web/sites/config',
+        'microsoft.web/sites/slots/config'
     )
+    | extend ConfigResourceId = tolower(id)
+    | project
+        ConfigResourceId,
+        LinuxFxVersion = coalesce(tostring(properties.LinuxFxVersion), tostring(properties.linuxFxVersion)),
+        WindowsFxVersion = coalesce(tostring(properties.WindowsFxVersion), tostring(properties.windowsFxVersion)),
+        NetFrameworkVersion = coalesce(tostring(properties.NetFrameworkVersion), tostring(properties.netFrameworkVersion)),
+        JavaVersion = coalesce(tostring(properties.JavaVersion), tostring(properties.javaVersion)),
+        JavaContainer = coalesce(tostring(properties.JavaContainer), tostring(properties.javaContainer)),
+        JavaContainerVersion = coalesce(tostring(properties.JavaContainerVersion), tostring(properties.javaContainerVersion)),
+        PhpVersion = coalesce(tostring(properties.PhpVersion), tostring(properties.phpVersion)),
+        PythonVersion = coalesce(tostring(properties.PythonVersion), tostring(properties.pythonVersion)),
+        NodeVersion = coalesce(tostring(properties.NodeVersion), tostring(properties.nodeVersion)),
+        PowerShellVersion = coalesce(tostring(properties.PowerShellVersion), tostring(properties.powerShellVersion)),
+        AlwaysOn = coalesce(tostring(properties.AlwaysOn), tostring(properties.alwaysOn)),
+        Http20Enabled = coalesce(tostring(properties.Http20Enabled), tostring(properties.http20Enabled)),
+        WebSocketsEnabled = coalesce(tostring(properties.WebSocketsEnabled), tostring(properties.webSocketsEnabled)),
+        HealthCheckPath = coalesce(tostring(properties.HealthCheckPath), tostring(properties.healthCheckPath)),
+        Use32BitWorkerProcess = coalesce(tostring(properties.Use32BitWorkerProcess), tostring(properties.use32BitWorkerProcess))
+) on ConfigResourceId
+| project-away ConfigResourceId1
 | extend
-    minTlsVersion = tostring(properties.siteConfig.minTlsVersion),
-    scmMinTlsVersion = tostring(properties.siteConfig.scmMinTlsVersion),
-    ftpsState = tostring(properties.siteConfig.ftpsState),
-    alwaysOn = tostring(properties.siteConfig.alwaysOn),
-    http20Enabled = tostring(properties.siteConfig.http20Enabled),
-    websocketsEnabled = tostring(properties.siteConfig.webSocketsEnabled),
-    remoteDebuggingEnabled = tostring(properties.siteConfig.remoteDebuggingEnabled),
-    use32BitWorkerProcess = tostring(properties.siteConfig.use32BitWorkerProcess),
-    healthCheckPath = tostring(properties.siteConfig.healthCheckPath),
-    managedPipelineMode = tostring(properties.siteConfig.managedPipelineMode),
-    minTlsCipherSuite = tostring(properties.siteConfig.minTlsCipherSuite)
-| extend
-    acrUseManagedIdentityCreds = tostring(properties.siteConfig.acrUseManagedIdentityCreds),
-    acrUserManagedIdentityID = tostring(properties.siteConfig.acrUserManagedIdentityID),
-    containerRegistryManagedIdentityClientId = tostring(properties.siteConfig.containerRegistryManagedIdentityClientId)
-| extend
-    identityType = tostring(identity.type),
-    identityPrincipalId = tostring(identity.principalId),
-    userAssignedIdentities = tostring(identity.userAssignedIdentities)
-| extend
-    scmType = tostring(properties.siteConfig.scmType),
-    localMySqlEnabled = tostring(properties.siteConfig.localMySqlEnabled),
-    storageAccountRequired = tostring(properties.storageAccountRequired),
-    keyVaultReferenceIdentity = tostring(properties.keyVaultReferenceIdentity)
-| extend
-    statusTLS = case(
-        minTlsVersion in~ ("1.3", "1.2"), "OK",
-        minTlsVersion in~ ("1.0", "1.1"), "Revisar: TLS antigo",
-        isempty(minTlsVersion), "Revisar: TLS nao identificado",
-        "Revisar"
+    RuntimePrincipal = case(
+        isnotempty(LinuxFxVersion), LinuxFxVersion,
+        isnotempty(WindowsFxVersion), WindowsFxVersion,
+        isnotempty(JavaVersion), strcat('JAVA|', JavaVersion),
+        isnotempty(PythonVersion), strcat('PYTHON|', PythonVersion),
+        isnotempty(NodeVersion), strcat('NODE|', NodeVersion),
+        isnotempty(PhpVersion), strcat('PHP|', PhpVersion),
+        isnotempty(PowerShellVersion), strcat('POWERSHELL|', PowerShellVersion),
+        isnotempty(NetFrameworkVersion), strcat('DOTNET_FRAMEWORK|', NetFrameworkVersion),
+        'Nao identificado'
     ),
-    statusSCMTLS = case(
-        scmMinTlsVersion in~ ("1.3", "1.2"), "OK",
-        scmMinTlsVersion in~ ("1.0", "1.1"), "Revisar: SCM TLS antigo",
-        isempty(scmMinTlsVersion), "Revisar: SCM TLS nao identificado",
-        "Revisar"
-    ),
-    statusHTTPS = case(
-        httpsOnly =~ "true", "OK",
-        httpsOnly =~ "false", "Revisar: HTTPS Only desabilitado",
-        "Revisar: HTTPS Only nao identificado"
-    ),
-    statusAlwaysOn = case(
-        tipoRecurso == "Function App" and appServicePlanSkuTier in~ ("Dynamic") and isempty(alwaysOn), "Nao aplicavel/Consumption",
-        alwaysOn =~ "true", "OK",
-        alwaysOn =~ "false", "Revisar: Always On desabilitado",
-        "Revisar: Always On nao identificado"
-    ),
-    statusFTPS = case(
-        ftpsState =~ "Disabled", "OK",
-        ftpsState =~ "FtpsOnly", "Aceitavel: somente FTPS",
-        ftpsState =~ "AllAllowed", "Revisar: FTP permitido",
-        isempty(ftpsState), "Revisar: FTPS nao identificado",
-        "Revisar"
-    ),
-    statusVNetIntegration = case(
-        isnotempty(vnetSubnetId), "Integrado com VNet",
-        isempty(vnetSubnetId), "Sem VNet Integration",
-        "Nao identificado"
-    ),
-    statusPublicNetworkAccess = case(
-        publicNetworkAccess =~ "Disabled", "OK: acesso publico desabilitado",
-        publicNetworkAccess =~ "Enabled", "Revisar conforme exposicao",
-        isempty(publicNetworkAccess), "Nao informado",
-        publicNetworkAccess
-    ),
-    statusRemoteDebugging = case(
-        remoteDebuggingEnabled =~ "false", "OK",
-        remoteDebuggingEnabled =~ "true", "Revisar: Remote Debugging habilitado",
-        "Nao identificado"
-    )
-| extend
-    statusRuntime = case(
-        runtimePrincipal has "NODE|10", "Retirement/legado: Node 10",
-        runtimePrincipal has "NODE|12", "Retirement/legado: Node 12",
-        runtimePrincipal has "NODE|14", "Retirement/legado: Node 14",
-        runtimePrincipal has "NODE|16", "Revisar: Node 16",
-        runtimePrincipal has "PYTHON|2.7", "Retirement/legado: Python 2.7",
-        runtimePrincipal has "PYTHON|3.6", "Retirement/legado: Python 3.6",
-        runtimePrincipal has "PYTHON|3.7", "Retirement/legado: Python 3.7",
-        runtimePrincipal has "PYTHON|3.8", "Revisar: Python 3.8",
-        runtimePrincipal has "PHP|5", "Retirement/legado: PHP 5",
-        runtimePrincipal has "PHP|7", "Retirement/legado: PHP 7",
-        runtimePrincipal has "DOTNETCORE|2", "Retirement/legado: .NET Core 2",
-        runtimePrincipal has "DOTNETCORE|3", "Retirement/legado: .NET Core 3",
-        runtimePrincipal has "DOTNET|5", "Retirement/legado: .NET 5",
-        runtimePrincipal has "DOTNET|6", "Revisar: .NET 6",
-        runtimePrincipal has "JAVA|8", "Revisar: Java 8",
-        runtimePrincipal == "Nao identificado", "Revisar: runtime nao identificado",
-        "OK/Revisar conforme matriz oficial"
-    )
-| extend
-    recomendacaoGeral = case(
-        statusTLS startswith "Revisar", "Prioridade: corrigir TLS minimo",
-        statusSCMTLS startswith "Revisar", "Prioridade: corrigir SCM TLS minimo",
-        statusHTTPS startswith "Revisar", "Prioridade: habilitar HTTPS Only",
-        statusRuntime startswith "Retirement", "Prioridade: runtime legado/retirement",
-        statusAlwaysOn startswith "Revisar", "Revisar Always On conforme criticidade",
-        statusFTPS startswith "Revisar", "Revisar FTP/FTPS",
-        statusRemoteDebugging startswith "Revisar", "Desabilitar Remote Debugging",
-        statusPublicNetworkAccess startswith "Revisar", "Revisar exposicao publica",
-        "Sem alerta critico inicial"
-    )
+    CreatedAtUTC = todatetime(systemData.createdAt),
+    LastModifiedUTC = todatetime(properties.lastModifiedTimeUtc),
+    State = tostring(properties.state),
+    Enabled = tostring(properties.enabled),
+    AvailabilityState = tostring(properties.availabilityState),
+    DefaultHostName = tostring(properties.defaultHostName),
+    PublicNetworkAccess = tostring(properties.publicNetworkAccess),
+    HttpsOnly = tostring(properties.httpsOnly),
+    IdentityType = tostring(identity.type),
+    IdentityPrincipalId = tostring(identity.principalId)
 | project
-    subscriptionName,
+    NomeSubscription,
     subscriptionId,
     resourceGroup,
-    tipoRecurso,
-    appName,
-    slotName,
-    appNameCompleto,
-    appKind,
-    resourceType,
-    resourceLocation,
-    state,
-    enabled,
-    availabilityState,
-    usageState,
-    appServicePlanName,
-    appServicePlanResourceGroup,
-    appServicePlanLocation,
-    appServicePlanSkuName,
-    appServicePlanSkuTier,
-    appServicePlanSkuSize,
-    appServicePlanSkuCapacity,
-    appServicePlanReservedLinux,
-    appServicePlanZoneRedundant,
-    appServicePlanNumberOfWorkers,
-    appServicePlanMaximumElasticWorkerCount,
-    appServicePlanPerSiteScaling,
-    appServicePlanElasticScaleEnabled,
-    appServicePlanHostingEnvironmentId,
-    appServicePlanHostingEnvironmentName,
-    runtimePrincipal,
-    statusRuntime,
-    linuxFxVersion,
-    windowsFxVersion,
-    netFrameworkVersion,
-    javaVersion,
-    javaContainer,
-    javaContainerVersion,
-    phpVersion,
-    pythonVersion,
-    nodeVersion,
-    powerShellVersion,
-    minTlsVersion,
-    statusTLS,
-    scmMinTlsVersion,
-    statusSCMTLS,
-    httpsOnly,
-    statusHTTPS,
-    alwaysOn,
-    statusAlwaysOn,
-    ftpsState,
-    statusFTPS,
-    publicNetworkAccess,
-    statusPublicNetworkAccess,
-    vnetSubnetId,
-    vnetRouteAllEnabled,
-    statusVNetIntegration,
-    remoteDebuggingEnabled,
-    statusRemoteDebugging,
-    http20Enabled,
-    websocketsEnabled,
-    use32BitWorkerProcess,
-    healthCheckPath,
-    managedPipelineMode,
-    minTlsCipherSuite,
-    clientAffinityEnabled,
-    clientCertEnabled,
-    clientCertMode,
-    defaultHostName,
-    hostNamesDisabled,
-    outboundIpAddresses,
-    possibleOutboundIpAddresses,
-    acrUseManagedIdentityCreds,
-    acrUserManagedIdentityID,
-    containerRegistryManagedIdentityClientId,
-    identityType,
-    identityPrincipalId,
-    userAssignedIdentities,
-    scmType,
-    localMySqlEnabled,
-    storageAccountRequired,
-    keyVaultReferenceIdentity,
-    recomendacaoGeral,
-    createdAtUTC,
-    createdAtGMT3,
-    lastModifiedUTC,
-    lastModifiedGMT3,
-    createdBy = tostring(systemData.createdBy),
-    tags = tostring(tags),
-    resourceId
-| order by subscriptionName asc, resourceGroup asc, tipoRecurso asc, appName asc, slotName asc
+    TipoWorkload,
+    AppName,
+    SlotName,
+    NomeCompleto,
+    AppKind,
+    ResourceType,
+    location,
+    State,
+    Enabled,
+    AvailabilityState,
+    AppServicePlanName,
+    AppServicePlanResourceGroup,
+    AppServicePlanLocation,
+    AppServicePlanSkuName,
+    AppServicePlanSkuTier,
+    AppServicePlanSkuSize,
+    AppServicePlanSkuCapacity,
+    AppServicePlanKind,
+    AppServicePlanReservedLinux,
+    AppServicePlanZoneRedundant,
+    RuntimePrincipal,
+    LinuxFxVersion,
+    WindowsFxVersion,
+    NetFrameworkVersion,
+    JavaVersion,
+    JavaContainer,
+    JavaContainerVersion,
+    PhpVersion,
+    PythonVersion,
+    NodeVersion,
+    PowerShellVersion,
+    AlwaysOn,
+    Http20Enabled,
+    WebSocketsEnabled,
+    HealthCheckPath,
+    Use32BitWorkerProcess,
+    HttpsOnly,
+    PublicNetworkAccess,
+    DefaultHostName,
+    IdentityType,
+    IdentityPrincipalId,
+    CreatedAtUTC,
+    LastModifiedUTC,
+    Tags = tostring(tags),
+    ResourceId
+| order by NomeSubscription asc, resourceGroup asc, TipoWorkload asc, AppName asc, SlotName asc
