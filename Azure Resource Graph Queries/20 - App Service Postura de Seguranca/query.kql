@@ -1,0 +1,98 @@
+// Para filtrar por subscriptions, insira após a linha "AppServiceResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+AppServiceResources
+| where type =~ 'microsoft.web/sites/config'
+| extend
+    SiteResourceId = tolower(tostring(split(id, '/config/')[0])),
+    MinTlsVersion = coalesce(tostring(properties.MinTlsVersion), tostring(properties.minTlsVersion)),
+    FtpsState = coalesce(tostring(properties.FtpsState), tostring(properties.ftpsState)),
+    RemoteDebuggingEnabled = coalesce(tostring(properties.RemoteDebuggingEnabled), tostring(properties.remoteDebuggingEnabled)),
+    Http20Enabled = coalesce(tostring(properties.Http20Enabled), tostring(properties.http20Enabled)),
+    AlwaysOn = coalesce(tostring(properties.AlwaysOn), tostring(properties.alwaysOn)),
+    NetFrameworkVersion = coalesce(tostring(properties.NetFrameworkVersion), tostring(properties.netFrameworkVersion)),
+    LinuxFxVersion = coalesce(tostring(properties.LinuxFxVersion), tostring(properties.linuxFxVersion)),
+    PhpVersion = coalesce(tostring(properties.PhpVersion), tostring(properties.phpVersion)),
+    PythonVersion = coalesce(tostring(properties.PythonVersion), tostring(properties.pythonVersion)),
+    NodeVersion = coalesce(tostring(properties.NodeVersion), tostring(properties.nodeVersion)),
+    JavaVersion = coalesce(tostring(properties.JavaVersion), tostring(properties.javaVersion))
+| join kind=leftouter (
+    Resources
+    | where type =~ 'microsoft.web/sites'
+    | extend SiteResourceId = tolower(id)
+    | project
+        SiteResourceId,
+        SiteName = name,
+        SiteKind = kind,
+        SiteLocation = location,
+        SiteState = tostring(properties.state),
+        HttpsOnly = tostring(properties.httpsOnly),
+        PublicNetworkAccess = tostring(properties.publicNetworkAccess),
+        VnetSubnetId = coalesce(tostring(properties.virtualNetworkSubnetId), tostring(properties.siteConfig.virtualNetworkSubnetId)),
+        AppServicePlanId = tostring(properties.serverFarmId),
+        SiteTags = tostring(tags)
+) on SiteResourceId
+| project-away SiteResourceId1
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    StatusTLS = case(
+        MinTlsVersion in~ ('1.2', '1.3'), 'OK',
+        MinTlsVersion in~ ('1.0', '1.1'), 'REVISAR: TLS antigo',
+        isempty(MinTlsVersion), 'REVISAR: TLS nao identificado',
+        'REVISAR'
+    ),
+    StatusHTTPS = case(
+        HttpsOnly =~ 'true', 'OK',
+        HttpsOnly =~ 'false', 'REVISAR: HTTPS Only desabilitado',
+        'REVISAR: HTTPS Only nao identificado'
+    ),
+    StatusFTPS = case(
+        FtpsState =~ 'Disabled', 'OK',
+        FtpsState =~ 'FtpsOnly', 'ACEITAVEL: somente FTPS',
+        FtpsState =~ 'AllAllowed', 'REVISAR: FTP permitido',
+        isempty(FtpsState), 'REVISAR: FTPS nao identificado',
+        'REVISAR'
+    ),
+    StatusRemoteDebugging = case(
+        RemoteDebuggingEnabled =~ 'false', 'OK',
+        RemoteDebuggingEnabled =~ 'true', 'REVISAR: Remote Debugging habilitado',
+        'NAO IDENTIFICADO'
+    )
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    SiteName,
+    SiteKind,
+    SiteLocation,
+    SiteState,
+    MinTlsVersion,
+    StatusTLS,
+    HttpsOnly,
+    StatusHTTPS,
+    FtpsState,
+    StatusFTPS,
+    RemoteDebuggingEnabled,
+    StatusRemoteDebugging,
+    Http20Enabled,
+    AlwaysOn,
+    PublicNetworkAccess,
+    VnetSubnetId,
+    AppServicePlanId,
+    NetFrameworkVersion,
+    LinuxFxVersion,
+    PhpVersion,
+    PythonVersion,
+    NodeVersion,
+    JavaVersion,
+    SiteTags,
+    SiteResourceId
+| order by NomeSubscription asc, resourceGroup asc, SiteName asc
