@@ -2,44 +2,44 @@
 
 ## Objetivo
 
-Documentar a abordagem correta para correlacionar Session Hosts do Azure Virtual Desktop com as máquinas virtuais correspondentes.
+Inventariar Session Hosts do Azure Virtual Desktop e correlacioná-los com as máquinas virtuais correspondentes para combinar estado operacional do AVD com configuração ARM da VM.
 
-## Classificação técnica
+## Fonte
 
-Este cenário é uma **solução híbrida**. O Azure Resource Graph é adequado para consultar as VMs e suas configurações, mas os detalhes operacionais dos Session Hosts devem ser obtidos pela Desktop Virtualization REST API, Azure PowerShell ou SDK oficial.
+`DesktopVirtualizationResources` + `Resources`
 
-## Fontes recomendadas
+## Campos retornados
 
-- Azure Resource Graph para inventário das máquinas virtuais.
-- Desktop Virtualization REST API para Session Hosts.
-- Azure PowerShell ou SDK oficial como cliente da API.
-
-Exemplo de operação REST:
-
-```text
-GET /subscriptions/{subscriptionId}/resourceGroups/{resourceGroupName}/providers/Microsoft.DesktopVirtualization/hostPools/{hostPoolName}/sessionHosts
-```
-
-## Campos que podem ser correlacionados
-
-- Host Pool
-- Session Host
-- Resource ID da VM
+- Subscription
+- Host Pool e Session Host
 - Status do Session Host
 - Allow New Session
 - Agent Version
 - Último heartbeat
-- Estado de energia da VM
-- Sistema operacional
-- Secure Boot, vTPM e Trusted Launch
+- Sessões ativas
+- Versão de sistema operacional reportada pelo AVD
+- Usuário atribuído, quando aplicável
+- Estado de atualização do agente
+- VM, Resource Group, região e tamanho
+- Tipo de sistema operacional
+- Security Type, Secure Boot e vTPM
+- Provisioning State e tags da VM
+
+## Execução
+
+Execute no Azure Resource Graph Explorer, Azure CLI ou Azure PowerShell.
+
+### Filtro opcional por subscription
+
+O arquivo `query.kql` contém um bloco comentado imediatamente após `DesktopVirtualizationResources`. Remova `//` para restringir a subscriptions específicas.
 
 ## Limitações
 
-Não foi criado `query.kql` porque uma consulta exclusivamente no ARG não garante heartbeat, Agent Version, sessões ativas ou Allow New Session. A correlação deve utilizar o Resource ID da VM retornado pela API do AVD.
+A tabela `DesktopVirtualizationResources` suporta o tipo `microsoft.desktopvirtualization/hostpools/sessionhosts`, porém a materialização de propriedades pode variar conforme versão do serviço e disponibilidade no tenant. A correlação com a VM depende de `properties.resourceId`. A consulta não substitui a Desktop Virtualization REST API quando forem necessários detalhes não expostos pelo Azure Resource Graph.
 
 ## Status de validação
 
-- Status: **CLASSIFICADA COMO SOLUÇÃO HÍBRIDA**
-- Data da revisão: **31/07/2026**
-- Query KQL criada: **não**
+- Status: **REVISADA ESTRUTURALMENTE**
+- Data da revisão: **13/08/2026**
+- Evidência: tipo `microsoft.desktopvirtualization/hostpools/sessionhosts` confirmado na lista oficial de recursos suportados pelo Azure Resource Graph.
 - Execução no tenant: **não realizada**
