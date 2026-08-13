@@ -1,0 +1,45 @@
+// Para filtrar por subscriptions, insira após a linha "ResourceChanges":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+ResourceChanges
+| extend
+    DataAlteracaoUTC = todatetime(properties.changeAttributes.timestamp),
+    TipoAlteracao = tostring(properties.changeType),
+    ResourceId = tostring(properties.targetResourceId),
+    TipoRecurso = tostring(properties.targetResourceType),
+    AlteradoPor = tostring(properties.changeAttributes.changedBy),
+    TipoIdentidade = tostring(properties.changeAttributes.changedByType),
+    ClienteOrigem = tostring(properties.changeAttributes.clientType),
+    Operacao = tostring(properties.changeAttributes.operation),
+    CorrelationId = tostring(properties.changeAttributes.correlationId),
+    QuantidadeMudancas = toint(properties.changeAttributes.changesCount)
+| where DataAlteracaoUTC >= ago(48h)
+| where TipoAlteracao in~ ('Update', 'Delete')
+| extend
+    NomeRecurso = tostring(split(ResourceId, '/')[-1]),
+    GrupoRecursos = tostring(split(ResourceId, '/')[4])
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    TipoAlteracao,
+    NomeRecurso,
+    TipoRecurso,
+    GrupoRecursos,
+    DataAlteracaoUTC,
+    AlteradoPor,
+    TipoIdentidade,
+    ClienteOrigem,
+    Operacao,
+    QuantidadeMudancas,
+    CorrelationId,
+    ResourceId
+| order by DataAlteracaoUTC desc
