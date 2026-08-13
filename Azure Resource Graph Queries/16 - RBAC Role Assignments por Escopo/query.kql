@@ -1,0 +1,56 @@
+// Para filtrar por subscriptions, insira após a linha "AuthorizationResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+AuthorizationResources
+| where type =~ 'microsoft.authorization/roleassignments'
+| extend
+    RoleDefinitionId = tostring(properties.roleDefinitionId),
+    PrincipalId = tostring(properties.principalId),
+    PrincipalType = tostring(properties.principalType),
+    Scope = tostring(properties.scope),
+    Condition = tostring(properties.condition),
+    ConditionVersion = tostring(properties.conditionVersion),
+    Description = tostring(properties.description)
+| extend RoleDefinitionResourceId = tolower(RoleDefinitionId)
+| join kind=leftouter (
+    AuthorizationResources
+    | where type =~ 'microsoft.authorization/roledefinitions'
+    | extend RoleDefinitionResourceId = tolower(id)
+    | project
+        RoleDefinitionResourceId,
+        RoleName = tostring(properties.roleName),
+        RoleType = tostring(properties.type),
+        AssignableScopes = tostring(properties.assignableScopes)
+) on RoleDefinitionResourceId
+| project-away RoleDefinitionResourceId1
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend TipoEscopo = case(
+    Scope has '/resourceGroups/' and Scope has '/providers/', 'Recurso',
+    Scope has '/resourceGroups/', 'Resource Group',
+    Scope startswith '/subscriptions/', 'Subscription',
+    Scope startswith '/providers/Microsoft.Management/managementGroups/', 'Management Group',
+    'Outro'
+)
+| project
+    NomeSubscription,
+    subscriptionId,
+    RoleName,
+    RoleType,
+    PrincipalType,
+    PrincipalId,
+    TipoEscopo,
+    Scope,
+    Condition,
+    ConditionVersion,
+    Description,
+    AssignableScopes,
+    RoleAssignmentId = id
+| order by NomeSubscription asc, RoleName asc, PrincipalType asc, PrincipalId asc
