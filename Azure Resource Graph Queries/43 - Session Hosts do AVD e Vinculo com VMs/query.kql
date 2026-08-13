@@ -1,0 +1,73 @@
+// Para filtrar por subscriptions, insira após a linha "DesktopVirtualizationResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+DesktopVirtualizationResources
+| where type =~ 'microsoft.desktopvirtualization/hostpools/sessionhosts'
+| extend
+    HostPoolName = tostring(split(name, '/')[0]),
+    SessionHostName = tostring(split(name, '/')[1]),
+    VMResourceId = tolower(tostring(properties.resourceId)),
+    StatusSessionHost = tostring(properties.status),
+    AllowNewSession = tostring(properties.allowNewSession),
+    AgentVersion = tostring(properties.agentVersion),
+    LastHeartBeatUTC = todatetime(properties.lastHeartBeat),
+    SessoesAtivas = toint(properties.sessions),
+    OSVersionAVD = tostring(properties.osVersion),
+    AssignedUser = tostring(properties.assignedUser),
+    UpdateState = tostring(properties.updateState),
+    UpdateErrorMessage = tostring(properties.updateErrorMessage)
+| join kind=leftouter (
+    Resources
+    | where type =~ 'microsoft.compute/virtualmachines'
+    | extend VMResourceId = tolower(id)
+    | project
+        VMResourceId,
+        VMName = name,
+        VMResourceGroup = resourceGroup,
+        VMLocation = location,
+        VMSize = tostring(properties.hardwareProfile.vmSize),
+        OSType = tostring(properties.storageProfile.osDisk.osType),
+        SecurityType = tostring(properties.securityProfile.securityType),
+        SecureBootEnabled = tostring(properties.securityProfile.uefiSettings.secureBootEnabled),
+        VTpmEnabled = tostring(properties.securityProfile.uefiSettings.vTpmEnabled),
+        VMProvisioningState = tostring(properties.provisioningState),
+        VMTags = tostring(tags)
+) on VMResourceId
+| project-away VMResourceId1
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    HostPoolName,
+    SessionHostName,
+    StatusSessionHost,
+    AllowNewSession,
+    AgentVersion,
+    LastHeartBeatUTC,
+    SessoesAtivas,
+    OSVersionAVD,
+    AssignedUser,
+    UpdateState,
+    UpdateErrorMessage,
+    VMName,
+    VMResourceGroup,
+    VMLocation,
+    VMSize,
+    OSType,
+    SecurityType,
+    SecureBootEnabled,
+    VTpmEnabled,
+    VMProvisioningState,
+    VMTags,
+    VMResourceId,
+    SessionHostResourceId = id
+| order by NomeSubscription asc, HostPoolName asc, SessionHostName asc
