@@ -1,0 +1,51 @@
+// Para filtrar por subscriptions, insira após a linha "ManagedServicesResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+ManagedServicesResources
+| where type in~ (
+    'microsoft.managedservices/registrationassignments',
+    'microsoft.managedservices/registrationdefinitions'
+)
+| extend
+    TipoRegistro = case(
+        type =~ 'microsoft.managedservices/registrationassignments', 'Registration Assignment',
+        type =~ 'microsoft.managedservices/registrationdefinitions', 'Registration Definition',
+        type
+    ),
+    RegistrationDefinitionId = tostring(properties.registrationDefinitionId),
+    RegistrationDefinitionName = tostring(properties.registrationDefinitionName),
+    ManagedByTenantId = tostring(properties.managedByTenantId),
+    ManagedByTenantName = tostring(properties.managedByTenantName),
+    ManageeTenantId = tostring(properties.manageeTenantId),
+    ManageeTenantName = tostring(properties.manageeTenantName),
+    ProvisioningState = tostring(properties.provisioningState),
+    Description = tostring(properties.description),
+    Authorizations = tostring(properties.authorizations),
+    EligibleAuthorizations = tostring(properties.eligibleAuthorizations)
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    resourceGroup,
+    TipoRegistro,
+    NomeRecurso = name,
+    RegistrationDefinitionId,
+    RegistrationDefinitionName,
+    ManagedByTenantId,
+    ManagedByTenantName,
+    ManageeTenantId,
+    ManageeTenantName,
+    ProvisioningState,
+    Description,
+    Authorizations,
+    EligibleAuthorizations,
+    ResourceId = id
+| order by NomeSubscription asc, TipoRegistro asc, RegistrationDefinitionName asc
