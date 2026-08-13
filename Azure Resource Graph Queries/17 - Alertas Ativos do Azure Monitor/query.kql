@@ -1,0 +1,45 @@
+// Para filtrar por subscriptions, insira após a linha "AlertsManagementResources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+AlertsManagementResources
+| where type =~ 'microsoft.alertsmanagement/alerts'
+| extend
+    InicioUTC = todatetime(properties.essentials.startDateTime),
+    UltimaModificacaoUTC = todatetime(properties.essentials.lastModifiedDateTime),
+    Severidade = tostring(properties.essentials.severity),
+    EstadoAlerta = tostring(properties.essentials.alertState),
+    CondicaoMonitoramento = tostring(properties.essentials.monitorCondition),
+    ServicoMonitoramento = tostring(properties.essentials.monitorService),
+    TipoSinal = tostring(properties.essentials.signalType),
+    RegraAlerta = tostring(properties.essentials.alertRule),
+    RecursoAlvo = tostring(properties.essentials.targetResourceName),
+    TipoRecursoAlvo = tostring(properties.essentials.targetResourceType),
+    GrupoRecursosAlvo = tostring(properties.essentials.targetResourceGroup),
+    Descricao = tostring(properties.essentials.description)
+| where CondicaoMonitoramento =~ 'Fired'
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, NomeSubscription = name
+) on subscriptionId
+| project-away subscriptionId1
+| project
+    NomeSubscription,
+    subscriptionId,
+    Severidade,
+    EstadoAlerta,
+    CondicaoMonitoramento,
+    ServicoMonitoramento,
+    TipoSinal,
+    RegraAlerta,
+    RecursoAlvo,
+    TipoRecursoAlvo,
+    GrupoRecursosAlvo,
+    InicioUTC,
+    UltimaModificacaoUTC,
+    Descricao,
+    AlertId = id
+| order by Severidade asc, InicioUTC desc
