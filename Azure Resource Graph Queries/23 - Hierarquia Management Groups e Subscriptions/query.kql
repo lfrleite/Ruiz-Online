@@ -1,0 +1,24 @@
+// Para filtrar por subscriptions, insira após a linha "ResourceContainers":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+ResourceContainers
+| where type =~ 'microsoft.resources/subscriptions'
+| extend
+    NomeSubscription = name,
+    EstadoSubscription = tostring(properties.state),
+    ManagementGroupAncestorsChain = properties.managementGroupAncestorsChain
+| mv-expand with_itemindex=NivelMG ManagementGroupAncestorsChain
+| extend
+    ManagementGroupId = tostring(ManagementGroupAncestorsChain.name),
+    ManagementGroupName = tostring(ManagementGroupAncestorsChain.displayName)
+| project
+    NomeSubscription,
+    subscriptionId,
+    EstadoSubscription,
+    NivelMG,
+    ManagementGroupId,
+    ManagementGroupName
+| order by NomeSubscription asc, NivelMG asc
