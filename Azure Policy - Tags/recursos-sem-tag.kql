@@ -1,0 +1,7 @@
+Resources
+| extend Ambiente = tostring(tags['Ambiente'])
+| extend CentroDeCusto = tostring(tags['CentroDeCusto'])
+| extend Departamento = tostring(tags['Departamento'])
+| where isempty(Ambiente) or isempty(CentroDeCusto) or isempty(Departamento)
+| project name, type, resourceGroup, subscriptionId, Ambiente, CentroDeCusto, Departamento
+| sort by resourceGroup asc, name asc

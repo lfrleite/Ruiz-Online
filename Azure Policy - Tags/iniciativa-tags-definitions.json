@@ -1,0 +1,37 @@
+[
+  {
+    "policyDefinitionReferenceId": "exigir-ambiente-rg",
+    "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025",
+    "parameters": {
+      "tagName": { "value": "Ambiente" }
+    }
+  },
+  {
+    "policyDefinitionReferenceId": "exigir-centrodecusto-rg",
+    "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/96670d01-0a4d-4649-9c89-2d3abc0a5025",
+    "parameters": {
+      "tagName": { "value": "CentroDeCusto" }
+    }
+  },
+  {
+    "policyDefinitionReferenceId": "herdar-ambiente-rg",
+    "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/cd3aa116-8754-49c9-a813-ad46512ece54",
+    "parameters": {
+      "tagName": { "value": "Ambiente" }
+    }
+  },
+  {
+    "policyDefinitionReferenceId": "herdar-centrodecusto-rg",
+    "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/ea3f2387-9b95-492a-a190-fcdc54f7b070",
+    "parameters": {
+      "tagName": { "value": "CentroDeCusto" }
+    }
+  },
+  {
+    "policyDefinitionReferenceId": "herdar-departamento-sub",
+    "policyDefinitionId": "/providers/Microsoft.Authorization/policyDefinitions/40df99da-1232-49b1-a39a-6da8d878f469",
+    "parameters": {
+      "tagName": { "value": "Departamento" }
+    }
+  }
+]
