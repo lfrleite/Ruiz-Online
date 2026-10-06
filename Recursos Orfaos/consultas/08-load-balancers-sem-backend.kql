@@ -1,0 +1,10 @@
+// 08 - Load Balancers Standard sem backend pool
+resources
+| where type =~ 'microsoft.network/loadbalancers'
+| where sku.name !~ 'Basic'
+| where array_length(properties.backendAddressPools) == 0
+| where isempty(tags['orfao-ignorar'])
+| project id, name, resourceGroup, subscriptionId, location,
+    detalhe = strcat('sku=', tostring(sku.name), '; tier=', tostring(sku.tier)),
+    detectadoEm = tostring(tags['orfao-detectado-em'])
+| order by id asc

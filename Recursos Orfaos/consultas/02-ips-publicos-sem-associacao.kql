@@ -1,0 +1,11 @@
+// 02 - IPs publicos sem associacao
+resources
+| where type =~ 'microsoft.network/publicipaddresses'
+| where isempty(properties.ipConfiguration) and isempty(properties.natGateway)
+| where isempty(tags['orfao-ignorar'])
+| project id, name, resourceGroup, subscriptionId, location,
+    detalhe = strcat('sku=', tostring(sku.name),
+        '; alocacao=', tostring(properties.publicIPAllocationMethod),
+        '; ip=', tostring(properties.ipAddress)),
+    detectadoEm = tostring(tags['orfao-detectado-em'])
+| order by id asc

@@ -1,0 +1,15 @@
+// 01 - Discos gerenciados nao anexados
+resources
+| where type =~ 'microsoft.compute/disks'
+| where isempty(managedBy)
+| where tostring(properties.diskState) =~ 'Unattached'
+| where tags !contains 'ASR-ReplicaDisk' and tags !contains 'asrseeddisk'
+| where name !startswith 'asrseeddisk' and name !endswith '-ASRReplica'
+| where isempty(tags['orfao-ignorar'])
+| project id, name, resourceGroup, subscriptionId, location,
+    detalhe = strcat('sku=', tostring(sku.name),
+        '; tamanhoGB=', tostring(properties.diskSizeGB),
+        '; criadoEm=', tostring(properties.timeCreated),
+        '; desanexadoEm=', tostring(properties.LastOwnershipUpdateTime)),
+    detectadoEm = tostring(tags['orfao-detectado-em'])
+| order by id asc

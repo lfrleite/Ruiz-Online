@@ -1,0 +1,9 @@
+// 06 - NSGs sem subnet e sem NIC
+resources
+| where type =~ 'microsoft.network/networksecuritygroups'
+| where isnull(properties.networkInterfaces) and isnull(properties.subnets)
+| where isempty(tags['orfao-ignorar'])
+| project id, name, resourceGroup, subscriptionId, location,
+    detalhe = strcat('regrasCustomizadas=', tostring(array_length(properties.securityRules))),
+    detectadoEm = tostring(tags['orfao-detectado-em'])
+| order by id asc

@@ -1,0 +1,9 @@
+// 09 - NAT Gateways sem subnet associada
+resources
+| where type =~ 'microsoft.network/natgateways'
+| where isnull(properties.subnets) or array_length(properties.subnets) == 0
+| where isempty(tags['orfao-ignorar'])
+| project id, name, resourceGroup, subscriptionId, location,
+    detalhe = strcat('sku=', tostring(sku.name)),
+    detectadoEm = tostring(tags['orfao-detectado-em'])
+| order by id asc

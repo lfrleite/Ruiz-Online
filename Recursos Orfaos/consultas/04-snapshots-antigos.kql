@@ -1,0 +1,13 @@
+// 04 - Snapshots com mais de 30 dias
+resources
+| where type =~ 'microsoft.compute/snapshots'
+| where todatetime(properties.timeCreated) < ago(30d)
+| where isempty(tags['orfao-ignorar'])
+| project id, name, resourceGroup, subscriptionId, location,
+    detalhe = strcat('criadoEm=', tostring(properties.timeCreated),
+        '; incremental=', tostring(properties.incremental),
+        '; tamanhoGB=', tostring(properties.diskSizeGB),
+        '; sku=', tostring(sku.name),
+        '; origem=', tostring(properties.creationData.sourceResourceId)),
+    detectadoEm = tostring(tags['orfao-detectado-em'])
+| order by id asc

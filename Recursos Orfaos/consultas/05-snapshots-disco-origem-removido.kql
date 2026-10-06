@@ -1,0 +1,19 @@
+// 05 - Snapshots cujo disco de origem nao existe mais
+resources
+| where type =~ 'microsoft.compute/snapshots'
+| where isempty(tags['orfao-ignorar'])
+| extend origemId = tolower(tostring(properties.creationData.sourceResourceId))
+| where origemId contains '/providers/microsoft.compute/disks/'
+| project id, name, resourceGroup, subscriptionId, location, origemId,
+    criadoEm = tostring(properties.timeCreated),
+    detectadoEm = tostring(tags['orfao-detectado-em'])
+| join kind=leftouter (
+    resources
+    | where type =~ 'microsoft.compute/disks'
+    | project origemId = tolower(id), discoId = id
+  ) on origemId
+| where isempty(discoId)
+| project id, name, resourceGroup, subscriptionId, location,
+    detalhe = strcat('criadoEm=', criadoEm, '; origemRemovida=', origemId),
+    detectadoEm
+| order by id asc

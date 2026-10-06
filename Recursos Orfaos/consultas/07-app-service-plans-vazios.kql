@@ -1,0 +1,10 @@
+// 07 - App Service plans pagos sem nenhum app
+resources
+| where type =~ 'microsoft.web/serverfarms'
+| where toint(properties.numberOfSites) == 0
+| where sku.tier !~ 'Free'
+| where isempty(tags['orfao-ignorar'])
+| project id, name, resourceGroup, subscriptionId, location,
+    detalhe = strcat('sku=', tostring(sku.name), '; tier=', tostring(sku.tier)),
+    detectadoEm = tostring(tags['orfao-detectado-em'])
+| order by id asc

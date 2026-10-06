@@ -1,0 +1,11 @@
+// Candidatos marcados ha mais de 30 dias e que ninguem reclamou
+// A TAG nao some quando o recurso volta a ser usado: cruze com o CSV do dia antes de excluir
+resources
+| where isnotempty(tags['orfao-detectado-em'])
+| where isempty(tags['orfao-ignorar'])
+| extend detectadoEm = todatetime(tags['orfao-detectado-em'])
+| where detectadoEm < ago(30d)
+| project id, name, type, resourceGroup, subscriptionId,
+    categoria = tostring(tags['orfao-categoria']),
+    detectadoEm
+| order by detectadoEm asc

@@ -1,0 +1,10 @@
+// 03 - NICs sem VM e sem Private Endpoint
+resources
+| where type =~ 'microsoft.network/networkinterfaces'
+| where isnull(properties.virtualMachine) and isnull(properties.privateEndpoint)
+| where isempty(tags['orfao-ignorar'])
+| project id, name, resourceGroup, subscriptionId, location,
+    detalhe = strcat('ipPrivado=', tostring(properties.ipConfigurations[0].properties.privateIPAddress),
+        '; temIpPublico=', iff(tostring(properties.ipConfigurations) contains 'publicIPAddress', 'sim', 'nao')),
+    detectadoEm = tostring(tags['orfao-detectado-em'])
+| order by id asc
