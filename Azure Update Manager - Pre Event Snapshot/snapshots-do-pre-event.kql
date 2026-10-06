@@ -1,0 +1,10 @@
+// Snapshots criados pelo runbook de pre-event, com as TAGs de rastreio.
+resources
+| where type =~ 'microsoft.compute/snapshots'
+| where tags['CriadoPor'] =~ 'aum-pre-event'
+| project name, resourceGroup, location,
+    execucao = tostring(tags['PatchRunId']),
+    vm = tostring(tags['VM']),
+    disco = tostring(tags['Disco']),
+    excluirEm = tostring(tags['Excluir em'])
+| order by execucao desc, vm asc

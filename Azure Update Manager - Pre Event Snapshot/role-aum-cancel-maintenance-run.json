@@ -1,0 +1,14 @@
+{
+  "Name": "role-aum-lab-cancel-maintenance-run",
+  "IsCustom": true,
+  "Description": "Permite que o runbook de pre-event cancele a execucao de uma maintenance configuration do Azure Update Manager.",
+  "Actions": [
+    "Microsoft.Maintenance/maintenanceConfigurations/read",
+    "Microsoft.Maintenance/applyUpdates/read",
+    "Microsoft.Maintenance/applyUpdates/write"
+  ],
+  "NotActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<SUBSCRIPTION_ID>"
+  ]
+}
