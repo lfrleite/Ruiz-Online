@@ -1,0 +1,6 @@
+// Arquivo: 012-07-discos-resumo.kql
+// Quantidade de discos e total de GB provisionados por SKU e estado.
+resources
+| where type =~ 'microsoft.compute/disks'
+| summarize discos = count(), totalGB = sum(toint(properties.diskSizeGB)) by skuDisco = tostring(sku.name), estadoDisco = tostring(properties.diskState)
+| order by totalGB desc

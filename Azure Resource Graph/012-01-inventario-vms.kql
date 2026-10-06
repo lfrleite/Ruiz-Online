@@ -1,0 +1,16 @@
+// Arquivo: 012-01-inventario-vms.kql
+// Inventário de VMs: assinatura, tamanho, tipo de S.O., imagem de origem e estado de energia.
+resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| extend vmSize = tostring(properties.hardwareProfile.vmSize),
+         osType = tostring(properties.storageProfile.osDisk.osType),
+         imagem = strcat(tostring(properties.storageProfile.imageReference.offer), ' / ', tostring(properties.storageProfile.imageReference.sku)),
+         estado = tostring(properties.extended.instanceView.powerState.code)
+// O nome da assinatura não está em resources. Ele vem de resourcecontainers.
+| join kind=leftouter (
+    resourcecontainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, assinatura = name
+  ) on subscriptionId
+| project assinatura, resourceGroup, name, location, vmSize, osType, imagem, estado, id
+| order by assinatura asc, resourceGroup asc, name asc, id asc

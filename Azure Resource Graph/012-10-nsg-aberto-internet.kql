@@ -1,0 +1,21 @@
+// Arquivo: 012-10-nsg-aberto-internet.kql
+// Regras de entrada que liberam tráfego vindo de qualquer origem ou da service tag Internet.
+resources
+| where type =~ 'microsoft.network/networksecuritygroups'
+// O padrão do mv-expand no Resource Graph é 128 linhas por registro. O limit sobe esse teto.
+| mv-expand regra = properties.securityRules limit 1000
+| extend nomeRegra = tostring(regra.name),
+         acesso = tostring(regra.properties.access),
+         direcao = tostring(regra.properties.direction),
+         prioridade = toint(regra.properties.priority),
+         protocolo = tostring(regra.properties.protocol),
+         origem = tostring(regra.properties.sourceAddressPrefix),
+         origens = tostring(regra.properties.sourceAddressPrefixes),
+         porta = tostring(regra.properties.destinationPortRange),
+         portas = tostring(regra.properties.destinationPortRanges)
+| where acesso =~ 'Allow' and direcao =~ 'Inbound'
+| where origem in~ ('*', 'Internet', '0.0.0.0/0') or origens contains '0.0.0.0/0' or origens contains 'Internet'
+// Para olhar só portas de gerência, tire o comentário da linha abaixo.
+// | where porta in ('22', '3389', '*')
+| project subscriptionId, resourceGroup, nsg = name, nomeRegra, prioridade, protocolo, porta, portas, origem, origens, id
+| order by nsg asc, prioridade asc, id asc
