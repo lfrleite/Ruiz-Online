@@ -1,0 +1,24 @@
+{
+  "Name": "role-aib-lab-pipeline",
+  "IsCustom": true,
+  "Description": "Permite ao pipeline do GitHub Actions criar e executar Image Templates do Azure VM Image Builder e alterar versões de imagem na Azure Compute Gallery.",
+  "Actions": [
+    "Microsoft.VirtualMachineImages/imageTemplates/*",
+    "Microsoft.ManagedIdentity/userAssignedIdentities/read",
+    "Microsoft.ManagedIdentity/userAssignedIdentities/assign/action",
+    "Microsoft.Compute/galleries/read",
+    "Microsoft.Compute/galleries/images/read",
+    "Microsoft.Compute/galleries/images/versions/read",
+    "Microsoft.Compute/galleries/images/versions/write",
+    "Microsoft.Resources/deployments/read",
+    "Microsoft.Resources/deployments/write",
+    "Microsoft.Resources/deployments/validate/action",
+    "Microsoft.Resources/deployments/operations/read",
+    "Microsoft.Resources/deployments/operationstatuses/read",
+    "Microsoft.Resources/subscriptions/resourceGroups/read"
+  ],
+  "NotActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<SUBSCRIPTION_ID>"
+  ]
+}
