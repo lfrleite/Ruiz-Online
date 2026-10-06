@@ -1,0 +1,21 @@
+Resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| extend securityType = tostring(properties.securityProfile.securityType)
+| extend secureBoot = tostring(properties.securityProfile.uefiSettings.secureBootEnabled)
+| extend vTpm = tostring(properties.securityProfile.uefiSettings.vTpmEnabled)
+| extend vmSize = tostring(properties.hardwareProfile.vmSize)
+| extend osType = tostring(properties.storageProfile.osDisk.osType)
+| extend osDiskId = tolower(tostring(properties.storageProfile.osDisk.managedDisk.id))
+| join kind=leftouter (
+    Resources
+    | where type =~ 'microsoft.compute/disks'
+    | project osDiskId = tolower(id), generation = tostring(properties.hyperVGeneration)
+  ) on osDiskId
+| extend situacao = case(
+    securityType =~ 'TrustedLaunch', 'Trusted Launch',
+    securityType =~ 'ConfidentialVM', 'Confidential VM',
+    generation =~ 'V2', 'Gen2 Standard',
+    generation =~ 'V1', 'Gen1',
+    'Sem geracao no disco')
+| project subscriptionId, resourceGroup, name, location, osType, vmSize, generation, securityType, secureBoot, vTpm, situacao
+| order by situacao asc, name asc
