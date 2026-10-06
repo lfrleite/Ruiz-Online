@@ -1,0 +1,22 @@
+// Artigo 024 - Migrando de NSG flow logs para VNet flow logs
+// Azure Resource Graph: inventario dos flow logs por tipo de alvo.
+// Rodar no Resource Graph Explorer ou pelo script 024-inventario-nsg-flow-logs.sh
+resources
+| where type =~ 'microsoft.network/networkwatchers/flowlogs'
+| extend alvo = tolower(tostring(properties.targetResourceId))
+| extend tipoAlvo = case(
+    alvo contains '/networksecuritygroups/', 'NSG (migrar)',
+    alvo contains '/subnets/', 'Subnet',
+    alvo contains '/networkinterfaces/', 'NIC',
+    alvo contains '/virtualnetworks/', 'VNet',
+    'Outro')
+| extend habilitado = tobool(properties.enabled)
+| extend versao = toint(properties.format.version)
+| extend retencaoDias = toint(properties.retentionPolicy.days)
+| extend ta = properties.flowAnalyticsConfiguration.networkWatcherFlowAnalyticsConfiguration
+| extend trafficAnalytics = tobool(ta.enabled)
+| extend intervaloTA = toint(ta.trafficAnalyticsInterval)
+| extend workspace = tostring(ta.workspaceResourceId)
+| extend storage = tostring(properties.storageId)
+| project subscriptionId, location, name, tipoAlvo, habilitado, versao, retencaoDias, trafficAnalytics, intervaloTA, alvo, storage, workspace
+| order by tipoAlvo asc, subscriptionId asc, location asc

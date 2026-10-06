@@ -1,0 +1,35 @@
+// Artigo 024 - Migrando de NSG flow logs para VNet flow logs
+// Rodar no Log Analytics workspace usado pelo Traffic Analytics.
+// Execute um bloco por vez.
+
+// 1 - O que chegou na tabela nova e com quais valores
+NTANetAnalytics
+| where SubType == "FlowLog" and TimeGenerated > ago(24h)
+| summarize Registros = count() by FlowType, FlowDirection, FlowStatus
+| order by Registros desc
+
+// 2 - Trafego negado por regra e porta
+NTANetAnalytics
+| where SubType == "FlowLog" and TimeGenerated > ago(24h)
+| where DeniedInFlows > 0 or DeniedOutFlows > 0
+| summarize Negados = sum(DeniedInFlows + DeniedOutFlows) by AclGroup, AclRule, DestPort, L4Protocol
+| top 20 by Negados desc
+
+// 3 - Quem conversa com quem dentro da rede
+NTANetAnalytics
+| where SubType == "FlowLog" and TimeGenerated > ago(24h)
+| where isnotempty(SrcSubnet) and isnotempty(DestSubnet)
+| summarize TotalBytes = sum(BytesSrcToDest + BytesDestToSrc) by SrcIp, DestIp, DestPort, L4Protocol
+| top 20 by TotalBytes desc
+
+// 4 - Tabela nova, registros por hora (acompanhar durante a virada)
+NTANetAnalytics
+| where SubType == "FlowLog" and TimeGenerated > ago(48h)
+| summarize RegistrosNovos = count() by bin(TimeGenerated, 1h)
+| order by TimeGenerated asc
+
+// 5 - Tabela antiga, registros por hora (so existe em workspace que recebeu NSG flow logs)
+AzureNetworkAnalytics_CL
+| where SubType_s == "FlowLog" and TimeGenerated > ago(48h)
+| summarize RegistrosAntigos = count() by bin(TimeGenerated, 1h)
+| order by TimeGenerated asc
