@@ -1,0 +1,13 @@
+// Linhas de log do runbook, da mais recente para a mais antiga
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.AUTOMATION" and Category == "JobStreams"
+| where RunbookName_s == "Start-Stop-VMs-Tag"
+| project TimeGenerated, JobId_g, StreamType_s, ResultDescription
+| sort by TimeGenerated desc
+
+// Jobs do runbook que terminaram com falha, parados ou suspensos
+AzureDiagnostics
+| where ResourceProvider == "MICROSOFT.AUTOMATION" and Category == "JobLogs"
+| where RunbookName_s == "Start-Stop-VMs-Tag"
+| where ResultType == "Failed" or ResultType == "Stopped" or ResultType == "Suspended"
+| project TimeGenerated, RunbookName_s, ResultType, JobId_g

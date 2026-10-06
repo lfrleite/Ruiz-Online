@@ -1,0 +1,16 @@
+{
+  "Name": "role-startstop-vm-operator",
+  "IsCustom": true,
+  "Description": "Permite ler, ligar e desalocar máquinas virtuais. Usada pela Managed Identity do runbook de Start/Stop.",
+  "Actions": [
+    "Microsoft.Compute/virtualMachines/read",
+    "Microsoft.Compute/virtualMachines/instanceView/read",
+    "Microsoft.Compute/virtualMachines/start/action",
+    "Microsoft.Compute/virtualMachines/deallocate/action",
+    "Microsoft.Resources/subscriptions/resourceGroups/read"
+  ],
+  "NotActions": [],
+  "AssignableScopes": [
+    "/subscriptions/<SUBSCRIPTION_ID>"
+  ]
+}

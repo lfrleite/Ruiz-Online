@@ -1,0 +1,5 @@
+resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| where tags['AutoStartStop'] =~ 'business-hours'
+| project name, resourceGroup, subscriptionId, location, powerState = tostring(properties.extended.instanceView.powerState.code)
+| order by name asc
