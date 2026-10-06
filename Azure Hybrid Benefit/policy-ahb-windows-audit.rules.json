@@ -1,0 +1,36 @@
+{
+  "if": {
+    "allOf": [
+      {
+        "field": "type",
+        "equals": "Microsoft.Compute/virtualMachines"
+      },
+      {
+        "anyOf": [
+          {
+            "field": "Microsoft.Compute/virtualMachines/storageProfile.osDisk.osType",
+            "equals": "Windows"
+          },
+          {
+            "field": "Microsoft.Compute/virtualMachines/storageProfile.imageReference.offer",
+            "equals": "WindowsServer"
+          }
+        ]
+      },
+      {
+        "field": "Microsoft.Compute/virtualMachines/storageProfile.imageReference.publisher",
+        "notEquals": "MicrosoftWindowsDesktop"
+      },
+      {
+        "field": "Microsoft.Compute/licenseType",
+        "notIn": [
+          "Windows_Server",
+          "Windows_Client"
+        ]
+      }
+    ]
+  },
+  "then": {
+    "effect": "[parameters('effect')]"
+  }
+}

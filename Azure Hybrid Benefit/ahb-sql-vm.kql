@@ -1,0 +1,11 @@
+// Azure Hybrid Benefit - SQL Server em VM
+// So aparecem aqui as VMs registradas na extensao SQL IaaS Agent.
+// sqlServerLicenseType: PAYG, AHUB ou DR.
+resources
+| where type =~ 'microsoft.sqlvirtualmachine/sqlvirtualmachines'
+| project subscriptionId, resourceGroup, name, location,
+    edicao = tostring(properties.sqlImageSku),
+    oferta = tostring(properties.sqlImageOffer),
+    licencaSql = tostring(properties.sqlServerLicenseType),
+    vmId = tostring(properties.virtualMachineResourceId), id
+| order by licencaSql asc, name asc

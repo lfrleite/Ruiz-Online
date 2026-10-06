@@ -1,0 +1,9 @@
+// Azure Hybrid Benefit - resumo por assinatura
+// Conta as VMs Windows por assinatura e por valor de licenseType.
+resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| where tostring(properties.storageProfile.osDisk.osType) =~ 'Windows'
+| extend licenseType = tostring(properties.licenseType)
+| extend licenseType = iff(isempty(licenseType), '(vazio)', licenseType)
+| summarize vms = count() by subscriptionId, licenseType
+| order by subscriptionId asc, licenseType asc

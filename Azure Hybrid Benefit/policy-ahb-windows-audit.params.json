@@ -1,0 +1,15 @@
+{
+  "effect": {
+    "type": "String",
+    "metadata": {
+      "displayName": "Effect",
+      "description": "Audit apenas reporta. Deny bloqueia a criacao de VM Windows Server sem Azure Hybrid Benefit."
+    },
+    "allowedValues": [
+      "Audit",
+      "Deny",
+      "Disabled"
+    ],
+    "defaultValue": "Audit"
+  }
+}
