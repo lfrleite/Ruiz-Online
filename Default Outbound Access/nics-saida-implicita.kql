@@ -1,0 +1,8 @@
+// NICs em que a plataforma alocou IP de saída implícito (default outbound access).
+resources
+| where type =~ 'microsoft.network/networkinterfaces'
+| where properties.defaultOutboundConnectivityEnabled == true
+| extend vm = tostring(properties.virtualMachine.id)
+| extend subnetId = tostring(properties.ipConfigurations[0].properties.subnet.id)
+| project nicId = id, subscriptionId, resourceGroup, nic = name, vm, subnetId
+| order by nicId asc

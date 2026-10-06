@@ -1,0 +1,15 @@
+// Subnets que ainda não são privadas (defaultOutboundAccess diferente de false).
+// Coluna defaultOutboundAccess vazia = propriedade nula, que se comporta como true.
+resources
+| where type =~ 'microsoft.network/virtualnetworks'
+| extend subnets = properties.subnets
+| mv-expand subnets limit 2000
+| extend subnetId = tostring(subnets.id)
+| extend subnetName = tostring(subnets.name)
+| extend defaultOutboundAccess = tostring(subnets.properties.defaultOutboundAccess)
+| extend natGateway = tostring(subnets.properties.natGateway.id)
+| extend routeTable = tostring(subnets.properties.routeTable.id)
+| extend delegacoes = array_length(subnets.properties.delegations)
+| where defaultOutboundAccess !~ 'false'
+| project subnetId, subscriptionId, resourceGroup, vnet = name, subnetName, defaultOutboundAccess, natGateway, routeTable, delegacoes
+| order by subnetId asc
