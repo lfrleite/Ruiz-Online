@@ -1,0 +1,9 @@
+// Compliance 05 - Quantidade de execucoes por maquina e por status nos ultimos 30 dias
+patchinstallationresources
+| where type !has "softwarepatches"
+| extend maquina = tostring(split(id, "/")[8]),
+         status = tostring(properties.status),
+         atualizadoEm = todatetime(properties.lastModifiedDateTime)
+| where atualizadoEm > ago(30d)
+| summarize execucoes = count() by maquina, resourceGroup, subscriptionId, status
+| order by maquina asc, resourceGroup asc, subscriptionId asc, status asc

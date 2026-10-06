@@ -1,0 +1,20 @@
+// Histórico de instalação de patches dos últimos 30 dias (Azure Resource Graph)
+// Uma linha por execução e por máquina, da mais recente para a mais antiga.
+patchinstallationresources
+| where type !has "softwarepatches"
+| extend prop = parse_json(properties)
+| extend
+    Maquina = tostring(split(id, "/")[8]),
+    Inicio = todatetime(prop.startDateTime),
+    SO = tostring(prop.osType),
+    Status = tostring(prop.status),
+    IniciadoPor = tostring(prop.startedBy),
+    Instalados = toint(prop.installedPatchCount),
+    Falharam = toint(prop.failedPatchCount),
+    Pendentes = toint(prop.pendingPatchCount),
+    Reboot = tostring(prop.rebootStatus),
+    JanelaEstourou = tostring(prop.maintenanceWindowExceeded),
+    MaintenanceRunId = tostring(prop.maintenanceRunId)
+| where Inicio > ago(30d)
+| project Inicio, Maquina, resourceGroup, SO, Status, IniciadoPor, Instalados, Falharam, Pendentes, Reboot, JanelaEstourou, MaintenanceRunId
+| order by Inicio desc

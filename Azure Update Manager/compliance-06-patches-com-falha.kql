@@ -1,0 +1,16 @@
+// Compliance 06 - Updates que falharam ou ficaram pendentes dentro de uma execucao
+// A coluna execucao e o identificador que aparece na consulta 04.
+patchinstallationresources
+| where type has "softwarepatches"
+| extend prop = parse_json(properties)
+| extend maquina = tostring(split(id, "/")[8]),
+         execucao = tostring(split(id, "/")[10]),
+         estado = tostring(prop.installationState),
+         classificacao = tostring(prop.classifications),
+         patch = tostring(prop.patchName),
+         kb = tostring(prop.kbId),
+         versao = tostring(prop.version),
+         atualizadoEm = todatetime(prop.lastModifiedDateTime)
+| where estado in ("Failed", "Pending")
+| order by maquina asc, atualizadoEm desc, id asc
+| project maquina, resourceGroup, subscriptionId, execucao, estado, classificacao, patch, kb, versao, atualizadoEm

@@ -1,0 +1,21 @@
+// Compliance 01 - Resumo da ultima avaliacao de cada maquina
+// Uma linha por maquina, com a contagem de updates pendentes por classificacao.
+// Retencao desta tabela no Resource Graph: 7 dias.
+patchassessmentresources
+| where type !has "softwarepatches"
+| extend prop = parse_json(properties)
+| extend maquina = tostring(split(id, "/")[8]),
+         so = tostring(prop.osType),
+         ultimaAvaliacao = todatetime(prop.lastModifiedDateTime),
+         rebootPendente = tostring(prop.rebootPending),
+         criticos = toint(prop.availablePatchCountByClassification.critical),
+         seguranca = toint(prop.availablePatchCountByClassification.security),
+         updateRollup = toint(prop.availablePatchCountByClassification.updateRollup),
+         featurePack = toint(prop.availablePatchCountByClassification.featurePack),
+         servicePack = toint(prop.availablePatchCountByClassification.servicePack),
+         definicoes = toint(prop.availablePatchCountByClassification.definition),
+         ferramentas = toint(prop.availablePatchCountByClassification.tools),
+         atualizacoes = toint(prop.availablePatchCountByClassification.updates),
+         outros = toint(prop.availablePatchCountByClassification.other)
+| order by criticos desc, seguranca desc, maquina asc, id asc
+| project maquina, resourceGroup, subscriptionId, so, ultimaAvaliacao, rebootPendente, criticos, seguranca, updateRollup, featurePack, servicePack, definicoes, ferramentas, atualizacoes, outros

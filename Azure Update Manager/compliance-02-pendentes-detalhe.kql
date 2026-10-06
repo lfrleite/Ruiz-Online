@@ -1,0 +1,15 @@
+// Compliance 02 - Lista dos updates pendentes, um por linha
+// kb vem preenchido em Windows e versao vem preenchida em Linux.
+patchassessmentresources
+| where type has "softwarepatches"
+| extend prop = parse_json(properties)
+| extend maquina = tostring(split(id, "/")[8]),
+         classificacao = tostring(prop.classifications),
+         patch = tostring(prop.patchName),
+         kb = tostring(prop.kbId),
+         versao = tostring(prop.version),
+         publicadoEm = todatetime(prop.publishedDateTime),
+         exigeReboot = tostring(prop.rebootRequired),
+         registradoEm = todatetime(prop.lastModifiedDateTime)
+| order by maquina asc, classificacao asc, patch asc, id asc
+| project maquina, resourceGroup, subscriptionId, classificacao, patch, kb, versao, publicadoEm, exigeReboot, registradoEm

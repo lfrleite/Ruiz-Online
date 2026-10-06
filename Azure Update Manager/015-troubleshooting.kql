@@ -1,0 +1,90 @@
+// 015-troubleshooting.kql
+// Consultas de diagnóstico do Azure Update Manager no Azure Resource Graph.
+// Rode uma por vez no Resource Graph Explorer.
+
+// 1. VMs e a data da última avaliação. Linha com UltimaAvaliacao vazia = sem dado de avaliação.
+resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| extend vmId = tolower(id)
+| extend PowerState = tostring(properties.extended.instanceView.powerState.displayStatus)
+| join kind=leftouter (
+    patchassessmentresources
+    | where type !has 'softwarepatches'
+    | extend vmId = tostring(split(tolower(id), '/patchassessmentresults/')[0])
+    | project vmId,
+              UltimaAvaliacao = todatetime(properties.lastModifiedDateTime),
+              IniciadaPor = tostring(properties.startedBy),
+              RebootPendente = tostring(properties.rebootPending)
+  ) on vmId
+| project name, resourceGroup, PowerState, UltimaAvaliacao, IniciadaPor, RebootPendente
+| order by UltimaAvaliacao asc
+
+// 2. Modo de patch de cada VM. A janela agendada exige AutomaticByPlatform + Bypass = true.
+resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| extend SO = tostring(properties.storageProfile.osDisk.osType)
+| extend ps = iff(SO =~ 'Windows',
+                  properties.osProfile.windowsConfiguration.patchSettings,
+                  properties.osProfile.linuxConfiguration.patchSettings)
+| project name, resourceGroup, SO,
+          PatchMode = tostring(ps.patchMode),
+          Bypass = tostring(ps.automaticByPlatformSettings.bypassPlatformSafetyChecksOnUserSchedule),
+          AssessmentMode = tostring(ps.assessmentMode)
+| order by PatchMode asc
+
+// 3. Erros registrados na última avaliação de cada máquina.
+patchassessmentresources
+| where type !has 'softwarepatches'
+| extend Maquina = tostring(split(id, '/')[8])
+| extend Erros = properties.errorDetails
+| where isnotempty(Erros)
+| project Maquina, resourceGroup,
+          Quando = todatetime(properties.lastModifiedDateTime),
+          SO = tostring(properties.osType),
+          Erros
+
+// 4. Instalações dos últimos 30 dias que não terminaram como Succeeded.
+patchinstallationresources
+| where type !has 'softwarepatches'
+| extend Maquina = tostring(split(id, '/')[8])
+| extend p = parse_json(properties)
+| extend Status = tostring(p.status)
+| where Status != 'Succeeded'
+| project Maquina, resourceGroup,
+          Inicio = todatetime(p.startDateTime),
+          Status,
+          JanelaExcedida = tostring(p.maintenanceWindowExceeded),
+          Reboot = tostring(p.rebootStatus),
+          Instalados = toint(p.installedPatchCount),
+          Pendentes = toint(p.pendingPatchCount),
+          Falhas = toint(p.failedPatchCount),
+          NaoSelecionados = toint(p.notSelectedPatchCount),
+          IniciadaPor = tostring(p.startedBy),
+          RunId = tostring(p.maintenanceRunId),
+          Erros = p.errorDetails
+| order by Inicio desc
+
+// 5. Instalou e ficou devendo reboot.
+patchinstallationresources
+| where type !has 'softwarepatches'
+| extend Maquina = tostring(split(id, '/')[8])
+| extend p = parse_json(properties)
+| where tostring(p.rebootStatus) in ('Required', 'Failed')
+| project Maquina, resourceGroup,
+          Inicio = todatetime(p.startDateTime),
+          Status = tostring(p.status),
+          Reboot = tostring(p.rebootStatus),
+          JanelaExcedida = tostring(p.maintenanceWindowExceeded)
+| order by Inicio desc
+
+// 6. Execuções de janela (maintenance runs) de uma VM. Troque o ID.
+maintenanceresources
+| where ['id'] contains "/subscriptions/<subscription-id>/resourcegroups/<resource-group>/providers/microsoft.compute/virtualmachines/<vm-name>"
+| where ['type'] == "microsoft.maintenance/applyupdates"
+| where properties.maintenanceScope == "InGuestPatch"
+
+// 7. A quais maintenance configurations uma VM está associada. Troque o ID.
+maintenanceresources
+| where type =~ 'microsoft.maintenance/configurationassignments'
+| where properties.resourceId =~ '<ID completo da VM>'
+| project Associacao = name, Configuracao = tostring(properties.maintenanceConfigurationId)

@@ -1,0 +1,52 @@
+// Artigo 010 - Ondas de patch com escopo dinâmico e TAGs
+// Rode cada bloco separadamente no Azure Resource Graph Explorer.
+// A chave da TAG é sensível a maiúsculas e minúsculas aqui: use exatamente o nome que você padronizou.
+
+// 1. Quem cada onda vai pegar: TAG, modo de patch e estado da VM
+resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| extend onda = tostring(tags['OndaPatch'])
+| extend osType = tostring(properties.storageProfile.osDisk.osType)
+| extend patchSettings = iff(osType =~ 'Windows',
+    properties.osProfile.windowsConfiguration.patchSettings,
+    properties.osProfile.linuxConfiguration.patchSettings)
+| extend patchMode = tostring(patchSettings.patchMode)
+| extend bypass = coalesce(tobool(patchSettings.automaticByPlatformSettings.bypassPlatformSafetyChecksOnUserSchedule), false)
+| extend powerState = tostring(properties.extended.instanceView.powerState.code)
+| extend situacao = case(
+    isempty(onda), 'Sem TAG de onda',
+    onda !in ('DEV', 'HML', 'PRD'), 'Valor de TAG fora do padrão',
+    patchMode != 'AutomaticByPlatform' or bypass == false, 'TAG ok, modo de patch errado',
+    powerState != 'PowerState/running', 'TAG ok, VM desligada',
+    'Pronta para a janela')
+| project name, resourceGroup, subscriptionId, osType, onda, patchMode, bypass, powerState, situacao
+| order by onda asc, name asc
+
+// 2. Tamanho de cada onda por assinatura e região, comparado ao limite de 1.000 recursos por dynamic scope
+resources
+| where type =~ 'microsoft.compute/virtualmachines'
+| extend onda = tostring(tags['OndaPatch'])
+| where isnotempty(onda)
+| summarize vms = count() by onda, subscriptionId, location
+| extend percentualDoLimite = round(100.0 * vms / 1000, 1)
+| order by vms desc
+
+// 3. Atribuições gravadas: qual recurso está ligado a qual maintenance configuration
+maintenanceresources
+| where type =~ 'microsoft.maintenance/configurationassignments'
+| project atribuicao = name,
+    configuracao = tostring(properties.maintenanceConfigurationId),
+    recurso = tostring(properties.resourceId)
+| order by configuracao asc
+
+// 4. Execuções das janelas: quantas VMs cada rodada de cada onda alcançou
+maintenanceresources
+| where type =~ 'microsoft.maintenance/applyupdates'
+| where properties.maintenanceScope =~ 'InGuestPatch'
+| extend configuracao = tostring(properties.maintenanceConfigurationId)
+| extend execucao = tostring(properties.correlationId)
+| extend vm = tostring(properties.resourceId)
+| extend inicio = todatetime(properties.startDateTime)
+| extend fim = todatetime(properties.endDateTime)
+| summarize vms = dcount(vm), inicio = min(inicio), fim = max(fim) by configuracao, execucao
+| order by inicio desc

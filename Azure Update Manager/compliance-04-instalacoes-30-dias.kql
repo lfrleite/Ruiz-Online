@@ -1,0 +1,23 @@
+// Compliance 04 - Execucoes de instalacao dos ultimos 30 dias
+// Uma linha por execucao, da mais recente para a mais antiga dentro de cada maquina.
+// Retencao desta tabela no Resource Graph: 30 dias.
+patchinstallationresources
+| where type !has "softwarepatches"
+| extend prop = parse_json(properties)
+| extend maquina = tostring(split(id, "/")[8]),
+         so = tostring(prop.osType),
+         inicio = todatetime(prop.startDateTime),
+         atualizadoEm = todatetime(prop.lastModifiedDateTime),
+         status = tostring(prop.status),
+         iniciadoPor = tostring(prop.startedBy),
+         reboot = tostring(prop.rebootStatus),
+         janelaEstourada = tostring(prop.maintenanceWindowExceeded),
+         instalados = toint(prop.installedPatchCount),
+         comFalha = toint(prop.failedPatchCount),
+         pendentes = toint(prop.pendingPatchCount),
+         excluidos = toint(prop.excludedPatchCount),
+         naoSelecionados = toint(prop.notSelectedPatchCount),
+         erros = tostring(prop.errorDetails)
+| where atualizadoEm > ago(30d)
+| order by maquina asc, inicio desc, id asc
+| project maquina, resourceGroup, subscriptionId, so, inicio, status, iniciadoPor, reboot, janelaEstourada, instalados, comFalha, pendentes, excluidos, naoSelecionados, erros, execucao = name

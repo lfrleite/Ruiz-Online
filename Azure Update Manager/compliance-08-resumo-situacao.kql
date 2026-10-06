@@ -1,0 +1,21 @@
+// Compliance 08 - Quantidade de VMs por situacao de avaliacao
+// Mesma logica da consulta 07, resumida para virar grafico no Workbook.
+resources
+| where type =~ "microsoft.compute/virtualmachines"
+| extend vmId = tolower(id),
+         powerState = tostring(properties.extended.instanceView.powerState.code)
+| project vmId, powerState
+| join kind=leftouter (
+    patchassessmentresources
+    | where type !has "softwarepatches"
+    | extend vmId = tolower(substring(id, 0, indexof(tolower(id), "/patchassessmentresults"))),
+             ultimaAvaliacao = todatetime(properties.lastModifiedDateTime)
+    | project vmId, ultimaAvaliacao
+  ) on vmId
+| extend situacao = case(
+    isnull(ultimaAvaliacao) and powerState !has "running", "Sem avaliacao - VM fora de execucao",
+    isnull(ultimaAvaliacao), "Sem avaliacao nos ultimos 7 dias",
+    ultimaAvaliacao < ago(2d), "Avaliacao com mais de 48 horas",
+    "Avaliacao em dia")
+| summarize maquinas = count() by situacao
+| order by maquinas desc, situacao asc

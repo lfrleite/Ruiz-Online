@@ -1,0 +1,6 @@
+// Compliance 03 - Total de updates pendentes por classificacao no escopo consultado
+patchassessmentresources
+| where type has "softwarepatches"
+| extend classificacao = tostring(properties.classifications)
+| summarize pendentes = count() by classificacao
+| order by pendentes desc, classificacao asc

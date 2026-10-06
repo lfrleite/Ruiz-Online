@@ -1,0 +1,26 @@
+// Compliance 07 - Todas as VMs do escopo e a situacao da avaliacao de cada uma
+// Parte do inventario (resources) e so depois cruza com a avaliacao.
+// E esta consulta que mostra a maquina que nunca foi avaliada.
+resources
+| where type =~ "microsoft.compute/virtualmachines"
+| extend vmId = tolower(id),
+         so = tostring(properties.storageProfile.osDisk.osType),
+         powerState = tostring(properties.extended.instanceView.powerState.code),
+         modoWindows = tostring(properties.osProfile.windowsConfiguration.patchSettings.assessmentMode),
+         modoLinux = tostring(properties.osProfile.linuxConfiguration.patchSettings.assessmentMode)
+| extend modoAvaliacao = iff(so =~ "Windows", modoWindows, modoLinux)
+| project vmId, maquina = name, resourceGroup, subscriptionId, so, powerState, modoAvaliacao
+| join kind=leftouter (
+    patchassessmentresources
+    | where type !has "softwarepatches"
+    | extend vmId = tolower(substring(id, 0, indexof(tolower(id), "/patchassessmentresults"))),
+             ultimaAvaliacao = todatetime(properties.lastModifiedDateTime)
+    | project vmId, ultimaAvaliacao
+  ) on vmId
+| extend situacao = case(
+    isnull(ultimaAvaliacao) and powerState !has "running", "Sem avaliacao - VM fora de execucao",
+    isnull(ultimaAvaliacao), "Sem avaliacao nos ultimos 7 dias",
+    ultimaAvaliacao < ago(2d), "Avaliacao com mais de 48 horas",
+    "Avaliacao em dia")
+| order by situacao desc, maquina asc, vmId asc
+| project maquina, resourceGroup, subscriptionId, so, powerState, modoAvaliacao, ultimaAvaliacao, situacao
