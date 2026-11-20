@@ -1,6 +1,0 @@
-// Arquivo: 012-02-vms-por-estado.kql
-// Quantidade de VMs por estado de energia.
-resources
-| where type =~ 'microsoft.compute/virtualmachines'
-| summarize total = count() by estado = tostring(properties.extended.instanceView.powerState.code)
-| order by total desc

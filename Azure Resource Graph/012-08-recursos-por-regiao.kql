@@ -1,5 +1,0 @@
-// Arquivo: 012-08-recursos-por-regiao.kql
-// Quantidade de recursos por região. Boa para gráfico e para conferir se algo foi criado fora do padrão.
-resources
-| summarize total = count() by location
-| order by total desc

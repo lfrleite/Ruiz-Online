@@ -1,7 +1,0 @@
-// Arquivo: 012-03-vms-sem-tag.kql
-// VMs que não têm a TAG Ambiente. Troque o nome da TAG pelo padrão do seu ambiente.
-resources
-| where type =~ 'microsoft.compute/virtualmachines'
-| where isempty(tags['Ambiente'])
-| project subscriptionId, resourceGroup, name, location, tags, id
-| order by resourceGroup asc, name asc, id asc
