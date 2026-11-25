@@ -48,6 +48,10 @@ O arquivo `query.kql` contém o bloco abaixo comentado no topo. Para ativá-lo, 
 ## Status de validação
 
 - Status: **REVISADA ESTRUTURALMENTE**
-- Data da revisão: **31/07/2026**
+- Data da revisão: **25/11/2026**
 - Evidência: revisão estática da tabela, filtro temporal e campos projetados.
 - Execução no tenant: **não realizada**
+
+## Revisão de 25/11/2026
+
+Corrigida a extração do nome final e do Resource Group pelo identificador ARM. A execução no tenant permanece pendente.

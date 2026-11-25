@@ -40,6 +40,10 @@ A ausência de item correlacionado indica que a proteção não foi identificada
 ## Status de validação
 
 - Status: **REVISADA ESTRUTURALMENTE**
-- Data da revisão: **31/07/2026**
+- Data da revisão: **25/11/2026**
 - Evidência: revisão estática da correlação por Resource ID.
 - Execução no tenant: **não realizada**
+
+## Revisão de 25/11/2026
+
+Estados de proteção são diferenciados; um item identificado não comprova backup recuperável. Múltiplos itens podem gerar mais de uma linha por VM; validar o escopo e a cobertura do cofre. A execução no tenant permanece pendente.
