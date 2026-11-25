@@ -20,29 +20,22 @@ Resources
 | project-away subscriptionId1
 | join kind=leftouter (
     Resources
-    | where type =~ "microsoft.web/sites"
-    | extend appServicePlanId = tolower(tostring(properties.serverFarmId))
+    | where type in~ ("microsoft.web/sites", "microsoft.web/sites/slots")
+    | extend appServicePlanId = tolower(tostring(properties.serverFarmId)), isSlot = type =~ "microsoft.web/sites/slots"
+    | where isnotempty(appServicePlanId)
     | summarize
-        appCount = count(),
-        appNames = make_set(name, 500),
-        appKinds = make_set(kind, 100),
-        appStates = make_set(tostring(properties.state), 100),
-        appDefaultHostNames = make_set(tostring(properties.defaultHostName), 500),
-        appHttpsOnlyValues = make_set(tostring(properties.httpsOnly), 20),
-        appPublicNetworkAccessValues = make_set(tostring(properties.publicNetworkAccess), 20)
-        by appServicePlanId
-) on appServicePlanId
-| project-away appServicePlanId1
-| join kind=leftouter (
-    Resources
-    | where type =~ "microsoft.web/sites/slots"
-    | extend appServicePlanId = tolower(tostring(properties.serverFarmId))
-    | summarize
-        slotCount = count(),
-        slotNames = make_set(name, 500),
-        slotKinds = make_set(kind, 100),
-        slotStates = make_set(tostring(properties.state), 100),
-        slotDefaultHostNames = make_set(tostring(properties.defaultHostName), 500)
+        appCount = countif(isSlot == false),
+        slotCount = countif(isSlot == true),
+        appNames = make_set_if(name, isSlot == false, 500),
+        appKinds = make_set_if(kind, isSlot == false, 100),
+        appStates = make_set_if(tostring(properties.state), isSlot == false, 100),
+        appDefaultHostNames = make_set_if(tostring(properties.defaultHostName), isSlot == false, 500),
+        appHttpsOnlyValues = make_set_if(tostring(properties.httpsOnly), isSlot == false, 20),
+        appPublicNetworkAccessValues = make_set_if(tostring(properties.publicNetworkAccess), isSlot == false, 20),
+        slotNames = make_set_if(name, isSlot == true, 500),
+        slotKinds = make_set_if(kind, isSlot == true, 100),
+        slotStates = make_set_if(tostring(properties.state), isSlot == true, 100),
+        slotDefaultHostNames = make_set_if(tostring(properties.defaultHostName), isSlot == true, 500)
         by appServicePlanId
 ) on appServicePlanId
 | project-away appServicePlanId1

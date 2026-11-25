@@ -1,0 +1,22 @@
+// Para filtrar por subscriptions, insira após a linha "Resources":
+// | where subscriptionId in (
+//     'SUBSCRIPTION-ID-1',
+//     'SUBSCRIPTION-ID-2'
+// )
+
+Resources
+| join kind=leftouter (
+    ResourceContainers
+    | where type =~ 'microsoft.resources/subscriptions'
+    | project subscriptionId, subscriptionName = name
+) on subscriptionId
+| project-away subscriptionId1
+| extend
+    Environment = coalesce(tostring(tags['Environment']), tostring(tags['environment']), tostring(tags['Ambiente']), tostring(tags['AMBIENTE'])),
+    Owner = coalesce(tostring(tags['Owner']), tostring(tags['owner']), tostring(tags['Responsavel'])),
+    CostCenter = coalesce(tostring(tags['CostCenter']), tostring(tags['costcenter']), tostring(tags['CentroCusto'])),
+    Application = coalesce(tostring(tags['Application']), tostring(tags['application']), tostring(tags['Aplicacao'])),
+    Criticality = coalesce(tostring(tags['Criticality']), tostring(tags['criticality']), tostring(tags['Criticidade']))
+| extend MissingTagCount = iff(isempty(Environment), 1, 0) + iff(isempty(Owner), 1, 0) + iff(isempty(CostCenter), 1, 0) + iff(isempty(Application), 1, 0) + iff(isempty(Criticality), 1, 0)
+| project subscriptionName, subscriptionId, resourceGroup, name, type, location, Environment, Owner, CostCenter, Application, Criticality, MissingTagCount, tags = tostring(tags), id
+| order by MissingTagCount desc, subscriptionName asc, resourceGroup asc, name asc

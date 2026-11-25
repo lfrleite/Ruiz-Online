@@ -43,4 +43,5 @@ SecurityResources
     PassosRemediacao,
     PropriedadesEstendidas,
     AlertResourceId = id
-| order by Severidade desc, GeradoEmUTC desc, NomeSubscription asc, NomeAlerta asc
+| extend PrioridadeSeveridade = case(Severidade =~ 'Critical', 0, Severidade =~ 'High', 1, Severidade =~ 'Medium', 2, Severidade =~ 'Low', 3, 4)
+| order by PrioridadeSeveridade asc, GeradoEmUTC desc, NomeSubscription asc, NomeAlerta asc

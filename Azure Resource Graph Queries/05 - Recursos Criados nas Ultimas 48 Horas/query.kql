@@ -19,8 +19,8 @@ ResourceChanges
 | where TipoAlteracao == 'Create'
 | extend
     DataCriacaoGMT3 = datetime_add('hour', -3, DataCriacaoUTC),
-    NomeRecurso = tostring(split(ResourceId, '/', 8)),
-    GrupoRecursos = tostring(split(ResourceId, '/', 4))
+    NomeRecurso = tostring(split(ResourceId, '/')[-1]),
+    GrupoRecursos = iff(tostring(split(ResourceId, '/')[3]) =~ 'resourceGroups', tostring(split(ResourceId, '/')[4]), '')
 | join kind=leftouter (
     ResourceContainers
     | where type == 'microsoft.resources/subscriptions'

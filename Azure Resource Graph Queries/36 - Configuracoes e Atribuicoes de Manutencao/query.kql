@@ -6,14 +6,18 @@
 
 MaintenanceResources
 | where type endswith '/configurationassignments' or type endswith '/applyupdates'
+| union (Resources | where type =~ 'microsoft.maintenance/maintenanceconfigurations')
 | extend
     TipoRegistro = case(
+        type =~ 'microsoft.maintenance/maintenanceconfigurations', 'Configuracao de manutencao',
         type endswith '/configurationassignments', 'Atribuicao de manutencao',
         type endswith '/applyupdates', 'Execucao de manutencao',
         type
     ),
     ResourceIdAlvo = tolower(tostring(properties.resourceId)),
-    MaintenanceConfigurationId = tostring(properties.maintenanceConfigurationId),
+    MaintenanceConfigurationId = iff(type =~ 'microsoft.maintenance/maintenanceconfigurations', id, tostring(properties.maintenanceConfigurationId)),
+    JanelaManutencao = tostring(properties.maintenanceWindow),
+    ConfiguracaoInstalacao = tostring(properties.installPatches),
     EscopoManutencao = tostring(properties.maintenanceScope),
     CorrelationId = tostring(properties.correlationId),
     InicioUTC = todatetime(properties.startDateTime),
@@ -43,6 +47,8 @@ MaintenanceResources
     Localizacao,
     TipoRegistro,
     MaintenanceConfigurationId,
+    JanelaManutencao,
+    ConfiguracaoInstalacao,
     EscopoManutencao,
     CorrelationId,
     InicioUTC,
