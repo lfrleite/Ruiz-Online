@@ -48,6 +48,10 @@ O arquivo `query.kql` contém o bloco abaixo comentado no topo. Para ativá-lo, 
 ## Status de validação
 
 - Status: **REVISADA ESTRUTURALMENTE**
-- Data da revisão: **31/07/2026**
+- Data da revisão: **25/11/2026**
 - Evidência: revisão estática dos joins, contagens e campos projetados.
 - Execução no tenant: **não realizada**
+
+## Revisão de 25/11/2026
+
+Aplicações e slots são agregados em uma única subconsulta; validar make_set_if e correspondência com o portal. A execução no tenant permanece pendente.

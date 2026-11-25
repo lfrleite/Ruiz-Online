@@ -42,6 +42,10 @@ O ARG pode sanitizar campos identificáveis e nem todos os alertas possuem a mes
 ## Status de validação
 
 - Status: **REVISADA ESTRUTURALMENTE**
-- Data da revisão: **31/07/2026**
+- Data da revisão: **25/11/2026**
 - Evidência: revisão estática com base nos exemplos públicos do Defender for Cloud.
 - Execução no tenant: **não realizada**
+
+## Revisão de 25/11/2026
+
+Ordenação por prioridade numérica de severidade. A execução no tenant permanece pendente.

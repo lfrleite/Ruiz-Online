@@ -40,6 +40,10 @@ A tabela operacional retorna principalmente atribuições e execuções. Detalhe
 ## Status de validação
 
 - Status: **REVISADA ESTRUTURALMENTE**
-- Data da revisão: **31/07/2026**
+- Data da revisão: **25/11/2026**
 - Evidência: revisão estática com base no esquema público do Azure Update Manager.
 - Execução no tenant: **não realizada**
+
+## Revisão de 25/11/2026
+
+Inclui configurações, atribuições e execuções; validar os tipos retornados, o suporte à união e os campos de janela e instalação. A execução no tenant permanece pendente.

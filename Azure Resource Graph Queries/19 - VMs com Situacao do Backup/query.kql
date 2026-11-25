@@ -18,6 +18,7 @@ Resources
 | join kind=leftouter (
     RecoveryServicesResources
     | where type =~ 'microsoft.recoveryservices/vaults/backupfabrics/protectioncontainers/protecteditems'
+    | where tostring(properties.backupManagementType) =~ 'AzureIaasVM' or tostring(properties.protectedItemType) =~ 'Microsoft.Compute/virtualMachines'
     | extend
         IdVM = tolower(coalesce(
             tostring(properties.sourceResourceId),
@@ -34,6 +35,7 @@ Resources
         CofreId = extract(@'(?i)(.*?/providers/microsoft.recoveryservices/vaults/[^/]+)', 1, id)
     | project
         IdVM,
+        ItemBackupId = id,
         EstadoProtecao,
         SaudeProtecao,
         UltimoBackupStatus,
@@ -43,8 +45,13 @@ Resources
 ) on IdVM
 | project-away IdVM1
 | extend SituacaoBackup = case(
-    isnotempty(EstadoProtecao), 'Protegida',
-    'Sem item de backup identificado'
+    isempty(ItemBackupId), 'Sem item de backup identificado',
+    EstadoProtecao in~ ('Protected', 'ProtectionConfigured'), 'Protecao configurada',
+    EstadoProtecao =~ 'ProtectionStopped', 'Protecao interrompida',
+    EstadoProtecao =~ 'ProtectionPaused', 'Protecao pausada',
+    EstadoProtecao in~ ('ProtectionError', 'ConfiguringProtectionFailed'), 'Erro de protecao',
+    isempty(EstadoProtecao), 'Item identificado sem estado',
+    strcat('Revisar estado: ', EstadoProtecao)
 )
 | join kind=leftouter (
     ResourceContainers
@@ -61,6 +68,7 @@ Resources
     SistemaOperacional,
     EstadoEnergia,
     SituacaoBackup,
+    ItemBackupId,
     EstadoProtecao,
     SaudeProtecao,
     UltimoBackupStatus,
